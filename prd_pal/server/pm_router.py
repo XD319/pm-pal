@@ -295,4 +295,65 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             )
         return {"product_id": result.value.id, "product": result.value.model_dump(mode="python")}
 
+    @router.post("/roadmap/items")
+    async def create_roadmap_item(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.roadmap import build_roadmap_item_from_opportunity
+
+        repository = await _repo()
+        item, priority = build_roadmap_item_from_opportunity(
+            opportunity_id=str(payload.get("opportunity_id") or ""),
+            title=str(payload.get("title") or "").strip() or "Untitled",
+            product_id=str(payload.get("product_id") or ""),
+            prd_id=str(payload.get("prd_id") or ""),
+            summary=str(payload.get("summary") or ""),
+            rice=payload.get("rice") if isinstance(payload.get("rice"), dict) else None,
+            ice=payload.get("ice") if isinstance(payload.get("ice"), dict) else None,
+        )
+        result = await repository.upsert_roadmap_item(item)
+        if not result.ok or result.value is None:
+            message = result.error.message if result.error else "persist failed"
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "roadmap_persist_failed", "message": message},
+            )
+        return {
+            "roadmap_item_id": result.value.id,
+            "roadmap_item": result.value.model_dump(mode="python"),
+            "priority": {
+                "method": priority.method,
+                "score": priority.score,
+                "details": priority.details,
+            },
+        }
+
+    @router.get("/roadmap/items")
+    async def list_roadmap_items(product_id: str | None = None) -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_roadmap_items(product_id=product_id)
+        items = result.value if result.ok and result.value else []
+        return {
+            "count": len(items),
+            "items": [item.model_dump(mode="python") for item in items],
+        }
+
+    @router.post("/feishu/feedback")
+    async def capture_feishu_pm_feedback(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.feishu_pm import capture_feishu_feedback
+
+        repository = await _repo()
+        texts = payload.get("texts") if isinstance(payload.get("texts"), list) else []
+        try:
+            return await capture_feishu_feedback(
+                texts=[str(item) for item in texts],
+                product_hint=str(payload.get("product_hint") or ""),
+                open_id=str(payload.get("open_id") or ""),
+                tenant_key=str(payload.get("tenant_key") or ""),
+                repository=repository,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_feishu_feedback", "message": str(exc)},
+            ) from exc
+
     return router
