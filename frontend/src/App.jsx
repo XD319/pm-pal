@@ -10,6 +10,7 @@ import './styles/layout.css';
 const RunDetailsPage = lazy(() => import('./pages/RunDetailsPage'));
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage'));
 const TrendsPage = lazy(() => import('./pages/TrendsPage'));
+const PmConsolePage = lazy(() => import('./pages/PmConsolePage'));
 
 function AppLayout() {
   const location = useLocation();
@@ -76,6 +77,14 @@ function App() {
           element={(
             <Suspense fallback={<RouteLoadingFallback />}>
               <TrendsPage />
+            </Suspense>
+          )}
+        />
+        <Route
+          path="pm"
+          element={(
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <PmConsolePage />
             </Suspense>
           )}
         />

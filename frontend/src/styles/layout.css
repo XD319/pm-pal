@@ -395,3 +395,63 @@
     padding-top: 0;
   }
 }
+
+.pm-console-grid,
+.pm-console-results {
+  align-items: start;
+}
+
+.pm-console .checkbox-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.75rem 0 1rem;
+}
+
+.pm-console .meta-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.pm-console .meta-list > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pm-console .meta-list dt {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.pm-console .meta-list dd {
+  margin: 0;
+}
+
+.pm-console .stack-list {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.pm-console .code-block {
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 28rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface, #111) 88%, transparent);
+}
+
+.pm-console .empty-copy {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.pm-console .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}

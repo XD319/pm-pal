@@ -34,6 +34,7 @@ function Navbar({ theme, onToggleTheme }) {
   const isHistoryActive = location.pathname === '/' && location.hash === '#history';
   const isCompareActive = location.pathname === '/compare';
   const isTrendsActive = location.pathname === '/trends';
+  const isPmActive = location.pathname === '/pm';
   const isDark = theme === 'dark';
 
   return (
@@ -77,6 +78,13 @@ function Navbar({ theme, onToggleTheme }) {
               aria-label="Open trend analysis"
             >
               趋势
+            </NavLink>
+            <NavLink
+              to="/pm"
+              className={`nav-link${isPmActive ? ' nav-link-active' : ''}`}
+              aria-label="Open PM Agent console"
+            >
+              PM Agent
             </NavLink>
             <NavLink
               to="/feishu"

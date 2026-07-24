@@ -202,6 +202,25 @@ export function fetchStatsSummary() {
   return requestJson('/api/stats');
 }
 
+export function createPmFeedback(payload) {
+  return requestJson('/api/pm/feedback', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function runPmPipeline(payload) {
+  return requestJson('/api/pm/pipeline/run', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 120000,
+  });
+}
+
+export function fetchPmPipeline(pipelineId) {
+  return requestJson(`/api/pm/pipeline/${encodeURIComponent(pipelineId)}`);
+}
+
 export async function downloadReportArtifact(runId, format) {
   const response = await fetchWithTimeout(appendFeishuContext(`/api/report/${encodeURIComponent(runId)}?format=${encodeURIComponent(format)}`), {
     timeoutMs: 20000,
