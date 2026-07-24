@@ -969,6 +969,41 @@ async def run_pm_pipeline(
         }
 
 
+@mcp.tool()
+async def get_pm_traceability(
+    root_id: str,
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Get PM evidence-chain links rooted at a pipeline or object id."""
+    try:
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+        from prd_pal.pm.repository import PmRepository
+        from prd_pal.pm.traceability import get_pm_traceability as get_pm_traceability_impl
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="get_pm_traceability"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        repository = PmRepository(db_path)
+        init_result = await repository.initialize()
+        if not init_result.ok:
+            message = (
+                init_result.error.message if init_result.error else "initialize failed"
+            )
+            return {"error": {"code": "repository_error", "message": message}}
+        return await get_pm_traceability_impl(repository, root_id)
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"get_pm_traceability failed: {exc}",
+            }
+        }
+
+
 def _with_audit_context(
     *,
     options: dict[str, Any] | None,

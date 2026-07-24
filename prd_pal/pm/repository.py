@@ -17,6 +17,13 @@ from .schemas import (
     PipelineStage,
     PipelineStatus,
 )
+from .models import (
+    Decision,
+    ProductContext,
+    RoadmapHorizon,
+    RoadmapItem,
+    TraceLink,
+)
 
 ArtifactType = Literal["insight", "opportunity", "prd"]
 
@@ -312,6 +319,319 @@ class PmRepository(SQLiteRepositoryBase):
             PRDDraft.model_validate(result.value["payload"])
         )
 
+    async def upsert_product_context(
+        self, product: ProductContext
+    ) -> RepositoryResult[ProductContext]:
+        async def operation(connection: Any) -> ProductContext:
+            await self._ensure_schema(connection)
+            now = utc_now_iso()
+            saved = product.model_copy(
+                update={
+                    "created_at": str(product.created_at or "").strip() or now,
+                    "updated_at": now,
+                }
+            )
+            await connection.execute(
+                """
+                INSERT INTO pm_product_context (
+                    id, name, module, target_users, business_goals_json,
+                    constraints_json, summary, created_at, updated_at,
+                    source_refs_json, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    module = excluded.module,
+                    target_users = excluded.target_users,
+                    business_goals_json = excluded.business_goals_json,
+                    constraints_json = excluded.constraints_json,
+                    summary = excluded.summary,
+                    updated_at = excluded.updated_at,
+                    source_refs_json = excluded.source_refs_json,
+                    metadata_json = excluded.metadata_json
+                """,
+                (
+                    saved.id,
+                    saved.name,
+                    saved.module,
+                    saved.target_users,
+                    self._dump_json(saved.business_goals),
+                    self._dump_json(saved.constraints),
+                    saved.summary,
+                    saved.created_at,
+                    saved.updated_at,
+                    self._dump_json(saved.source_refs),
+                    self._dump_json(saved.metadata),
+                ),
+            )
+            await connection.commit()
+            return saved
+
+        return await self._run("pm_repository.upsert_product_context", operation)
+
+    async def get_product_context(
+        self, product_id: str
+    ) -> RepositoryResult[ProductContext]:
+        async def operation(connection: Any) -> ProductContext:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute(
+                """
+                SELECT id, name, module, target_users, business_goals_json,
+                       constraints_json, summary, created_at, updated_at,
+                       source_refs_json, metadata_json
+                FROM pm_product_context
+                WHERE id = ?
+                """,
+                (product_id,),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                self._raise_not_found("product_context", product_id)
+            return ProductContext(
+                id=str(row["id"]),
+                name=str(row["name"]),
+                module=str(row["module"] or ""),
+                target_users=str(row["target_users"] or ""),
+                business_goals=[
+                    str(item) for item in self._load_json_list(row["business_goals_json"])
+                ],
+                constraints=[
+                    str(item) for item in self._load_json_list(row["constraints_json"])
+                ],
+                summary=str(row["summary"] or ""),
+                created_at=str(row["created_at"] or ""),
+                updated_at=str(row["updated_at"] or ""),
+                source_refs=[
+                    str(item) for item in self._load_json_list(row["source_refs_json"])
+                ],
+                metadata=self._load_json_object(row["metadata_json"]),
+            )
+
+        return await self._run("pm_repository.get_product_context", operation)
+
+    async def upsert_decision(self, decision: Decision) -> RepositoryResult[Decision]:
+        async def operation(connection: Any) -> Decision:
+            await self._ensure_schema(connection)
+            now = utc_now_iso()
+            saved = decision.model_copy(
+                update={
+                    "created_at": str(decision.created_at or "").strip() or now,
+                    "updated_at": now,
+                }
+            )
+            await connection.execute(
+                """
+                INSERT INTO pm_decision (
+                    id, product_id, title, status, summary, rationale,
+                    evidence_refs_json, source_refs_json, created_at, updated_at, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    product_id = excluded.product_id,
+                    title = excluded.title,
+                    status = excluded.status,
+                    summary = excluded.summary,
+                    rationale = excluded.rationale,
+                    evidence_refs_json = excluded.evidence_refs_json,
+                    source_refs_json = excluded.source_refs_json,
+                    updated_at = excluded.updated_at,
+                    metadata_json = excluded.metadata_json
+                """,
+                (
+                    saved.id,
+                    saved.product_id,
+                    saved.title,
+                    str(saved.status),
+                    saved.summary,
+                    saved.rationale,
+                    self._dump_json(saved.evidence_refs),
+                    self._dump_json(saved.source_refs),
+                    saved.created_at,
+                    saved.updated_at,
+                    self._dump_json(saved.metadata),
+                ),
+            )
+            await connection.commit()
+            return saved
+
+        return await self._run("pm_repository.upsert_decision", operation)
+
+    async def upsert_roadmap_item(
+        self, item: RoadmapItem
+    ) -> RepositoryResult[RoadmapItem]:
+        async def operation(connection: Any) -> RoadmapItem:
+            await self._ensure_schema(connection)
+            now = utc_now_iso()
+            saved = item.model_copy(
+                update={
+                    "created_at": str(item.created_at or "").strip() or now,
+                    "updated_at": now,
+                }
+            )
+            await connection.execute(
+                """
+                INSERT INTO pm_roadmap_item (
+                    id, product_id, title, horizon, opportunity_id, prd_id, score,
+                    summary, source_refs_json, evidence_refs_json,
+                    created_at, updated_at, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    product_id = excluded.product_id,
+                    title = excluded.title,
+                    horizon = excluded.horizon,
+                    opportunity_id = excluded.opportunity_id,
+                    prd_id = excluded.prd_id,
+                    score = excluded.score,
+                    summary = excluded.summary,
+                    source_refs_json = excluded.source_refs_json,
+                    evidence_refs_json = excluded.evidence_refs_json,
+                    updated_at = excluded.updated_at,
+                    metadata_json = excluded.metadata_json
+                """,
+                (
+                    saved.id,
+                    saved.product_id,
+                    saved.title,
+                    str(saved.horizon),
+                    saved.opportunity_id,
+                    saved.prd_id,
+                    float(saved.score),
+                    saved.summary,
+                    self._dump_json(saved.source_refs),
+                    self._dump_json(saved.evidence_refs),
+                    saved.created_at,
+                    saved.updated_at,
+                    self._dump_json(saved.metadata),
+                ),
+            )
+            await connection.commit()
+            return saved
+
+        return await self._run("pm_repository.upsert_roadmap_item", operation)
+
+    async def list_roadmap_items(
+        self, *, product_id: str | None = None
+    ) -> RepositoryResult[list[RoadmapItem]]:
+        async def operation(connection: Any) -> list[RoadmapItem]:
+            await self._ensure_schema(connection)
+            if product_id:
+                cursor = await connection.execute(
+                    """
+                    SELECT id, product_id, title, horizon, opportunity_id, prd_id, score,
+                           summary, source_refs_json, evidence_refs_json,
+                           created_at, updated_at, metadata_json
+                    FROM pm_roadmap_item
+                    WHERE product_id = ?
+                    ORDER BY score DESC, updated_at DESC
+                    """,
+                    (product_id,),
+                )
+            else:
+                cursor = await connection.execute(
+                    """
+                    SELECT id, product_id, title, horizon, opportunity_id, prd_id, score,
+                           summary, source_refs_json, evidence_refs_json,
+                           created_at, updated_at, metadata_json
+                    FROM pm_roadmap_item
+                    ORDER BY score DESC, updated_at DESC
+                    """
+                )
+            rows = await cursor.fetchall()
+            items: list[RoadmapItem] = []
+            for row in rows:
+                items.append(
+                    RoadmapItem(
+                        id=str(row["id"]),
+                        product_id=str(row["product_id"] or ""),
+                        title=str(row["title"]),
+                        horizon=RoadmapHorizon(str(row["horizon"])),
+                        opportunity_id=str(row["opportunity_id"] or ""),
+                        prd_id=str(row["prd_id"] or ""),
+                        score=float(row["score"] or 0),
+                        summary=str(row["summary"] or ""),
+                        source_refs=[
+                            str(item)
+                            for item in self._load_json_list(row["source_refs_json"])
+                        ],
+                        evidence_refs=[
+                            str(item)
+                            for item in self._load_json_list(row["evidence_refs_json"])
+                        ],
+                        created_at=str(row["created_at"] or ""),
+                        updated_at=str(row["updated_at"] or ""),
+                        metadata=self._load_json_object(row["metadata_json"]),
+                    )
+                )
+            return items
+
+        return await self._run("pm_repository.list_roadmap_items", operation)
+
+    async def upsert_trace_link(self, link: TraceLink) -> RepositoryResult[TraceLink]:
+        async def operation(connection: Any) -> TraceLink:
+            await self._ensure_schema(connection)
+            saved = link.model_copy(
+                update={"created_at": str(link.created_at or "").strip() or utc_now_iso()}
+            )
+            await connection.execute(
+                """
+                INSERT INTO pm_trace_link (
+                    id, source_type, source_id, target_type, target_id,
+                    relation, created_at, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    source_type = excluded.source_type,
+                    source_id = excluded.source_id,
+                    target_type = excluded.target_type,
+                    target_id = excluded.target_id,
+                    relation = excluded.relation,
+                    metadata_json = excluded.metadata_json
+                """,
+                (
+                    saved.id,
+                    saved.source_type,
+                    saved.source_id,
+                    saved.target_type,
+                    saved.target_id,
+                    saved.relation,
+                    saved.created_at,
+                    self._dump_json(saved.metadata),
+                ),
+            )
+            await connection.commit()
+            return saved
+
+        return await self._run("pm_repository.upsert_trace_link", operation)
+
+    async def list_trace_links(
+        self, *, root_id: str
+    ) -> RepositoryResult[list[TraceLink]]:
+        async def operation(connection: Any) -> list[TraceLink]:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute(
+                """
+                SELECT id, source_type, source_id, target_type, target_id,
+                       relation, created_at, metadata_json
+                FROM pm_trace_link
+                WHERE source_id = ? OR target_id = ?
+                ORDER BY created_at ASC, id ASC
+                """,
+                (root_id, root_id),
+            )
+            rows = await cursor.fetchall()
+            return [
+                TraceLink(
+                    id=str(row["id"]),
+                    source_type=str(row["source_type"]),
+                    source_id=str(row["source_id"]),
+                    target_type=str(row["target_type"]),
+                    target_id=str(row["target_id"]),
+                    relation=str(row["relation"] or "derived_from"),
+                    created_at=str(row["created_at"] or ""),
+                    metadata=self._load_json_object(row["metadata_json"]),
+                )
+                for row in rows
+            ]
+
+        return await self._run("pm_repository.list_trace_links", operation)
+
     async def _ensure_schema(self, connection: Any) -> None:
         await connection.executescript(
             """
@@ -362,6 +682,70 @@ class PmRepository(SQLiteRepositoryBase):
 
             CREATE INDEX IF NOT EXISTS idx_pm_artifact_pipeline
                 ON pm_artifact (pipeline_id, artifact_type);
+
+            CREATE TABLE IF NOT EXISTS pm_product_context (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                module TEXT NOT NULL DEFAULT '',
+                target_users TEXT NOT NULL DEFAULT '',
+                business_goals_json TEXT NOT NULL DEFAULT '[]',
+                constraints_json TEXT NOT NULL DEFAULT '[]',
+                summary TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT '',
+                source_refs_json TEXT NOT NULL DEFAULT '[]',
+                metadata_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS pm_decision (
+                id TEXT PRIMARY KEY,
+                product_id TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL,
+                status TEXT NOT NULL,
+                summary TEXT NOT NULL DEFAULT '',
+                rationale TEXT NOT NULL DEFAULT '',
+                evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+                source_refs_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT '',
+                metadata_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS pm_roadmap_item (
+                id TEXT PRIMARY KEY,
+                product_id TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL,
+                horizon TEXT NOT NULL,
+                opportunity_id TEXT NOT NULL DEFAULT '',
+                prd_id TEXT NOT NULL DEFAULT '',
+                score REAL NOT NULL DEFAULT 0,
+                summary TEXT NOT NULL DEFAULT '',
+                source_refs_json TEXT NOT NULL DEFAULT '[]',
+                evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT '',
+                metadata_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS pm_trace_link (
+                id TEXT PRIMARY KEY,
+                source_type TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                relation TEXT NOT NULL DEFAULT 'derived_from',
+                created_at TEXT NOT NULL,
+                metadata_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pm_trace_source
+                ON pm_trace_link (source_id, source_type);
+
+            CREATE INDEX IF NOT EXISTS idx_pm_trace_target
+                ON pm_trace_link (target_id, target_type);
+
+            CREATE INDEX IF NOT EXISTS idx_pm_roadmap_product
+                ON pm_roadmap_item (product_id, horizon, score);
             """
         )
 

@@ -267,4 +267,32 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
         payload["insights"] = insights
         return payload
 
+    @router.get("/traceability/{root_id}")
+    async def get_traceability(root_id: str) -> dict[str, Any]:
+        from prd_pal.pm.traceability import get_pm_traceability
+
+        repository = await _repo()
+        try:
+            return await get_pm_traceability(repository, root_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_traceability_request", "message": str(exc)},
+            ) from exc
+
+    @router.post("/products")
+    async def upsert_product(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.models import ProductContext
+
+        repository = await _repo()
+        product = ProductContext.model_validate(payload)
+        result = await repository.upsert_product_context(product)
+        if not result.ok or result.value is None:
+            message = result.error.message if result.error else "persist failed"
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "product_persist_failed", "message": message},
+            )
+        return {"product_id": result.value.id, "product": result.value.model_dump(mode="python")}
+
     return router

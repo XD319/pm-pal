@@ -176,6 +176,9 @@ async def run_pm_pipeline(
             }
         )
         await repo.upsert_pipeline_run(record)
+        from .traceability import persist_pipeline_traceability
+
+        await persist_pipeline_traceability(repo, record)
     except Exception as exc:
         record = record.model_copy(
             update={
