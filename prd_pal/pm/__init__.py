@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .repository import PmRepository
 from .schemas import (
     FeedbackItem,
     InsightCluster,
@@ -34,6 +35,7 @@ __all__ = [
     "PipelineRunRecord",
     "PipelineStage",
     "PipelineStatus",
+    "PmRepository",
     "validate_insight_extraction_output",
     "validate_opportunity_brief_output",
     "validate_prd_draft_output",
