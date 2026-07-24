@@ -689,6 +689,286 @@ def get_traceability(
         }
 
 
+def _pm_db_path_from_options(options: dict[str, Any] | None) -> str | None:
+    resolved = options or {}
+    if not isinstance(resolved, dict):
+        raise TypeError("options must be an object")
+    db_path = str(resolved.get("db_path") or "").strip()
+    return db_path or None
+
+
+@mcp.tool()
+async def capture_feedback(
+    texts: list[str] | None = None,
+    product_hint: str = "",
+    source: str = "manual",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Capture raw PM feedback texts into persisted FeedbackItem records."""
+    try:
+        from prd_pal.pm.repository import PmRepository
+        from prd_pal.pm.workflow import capture_feedback as capture_feedback_impl
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="capture_feedback"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        repository = PmRepository(db_path)
+        init_result = await repository.initialize()
+        if not init_result.ok:
+            message = (
+                init_result.error.message if init_result.error else "initialize failed"
+            )
+            return {"error": {"code": "repository_error", "message": message}}
+        items = await capture_feedback_impl(
+            list(texts or []),
+            product_hint=product_hint,
+            source=source,
+            repository=repository,
+        )
+        return {
+            "count": len(items),
+            "feedback_ids": [item.id for item in items],
+            "feedback": [item.model_dump(mode="python") for item in items],
+        }
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"capture_feedback failed: {exc}",
+            }
+        }
+
+
+@mcp.tool()
+async def cluster_feedback(
+    feedback_ids: list[str] | None = None,
+    feedback_texts: list[str] | None = None,
+    product_hint: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Cluster feedback into insights with source_refs."""
+    try:
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+        from prd_pal.pm.insight_service import cluster_feedback as cluster_feedback_impl
+        from prd_pal.pm.repository import PmRepository
+        from prd_pal.pm.workflow import capture_feedback as capture_feedback_impl
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="cluster_feedback"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        repository = PmRepository(db_path)
+        init_result = await repository.initialize()
+        if not init_result.ok:
+            message = (
+                init_result.error.message if init_result.error else "initialize failed"
+            )
+            return {"error": {"code": "repository_error", "message": message}}
+
+        feedback_items = []
+        for feedback_id in feedback_ids or []:
+            result = await repository.get_feedback(str(feedback_id))
+            if not result.ok or result.value is None:
+                return {
+                    "error": {
+                        "code": "not_found",
+                        "message": f"feedback_id not found: {feedback_id}",
+                    }
+                }
+            feedback_items.append(result.value)
+        if feedback_texts:
+            feedback_items.extend(
+                await capture_feedback_impl(
+                    list(feedback_texts),
+                    product_hint=product_hint,
+                    repository=repository,
+                )
+            )
+        insights = await cluster_feedback_impl(
+            feedback_items, product_hint=product_hint
+        )
+        for insight in insights:
+            await repository.upsert_artifact(
+                artifact_type="insight",
+                artifact_id=insight.id,
+                payload=insight,
+            )
+        return {
+            "count": len(insights),
+            "insight_ids": [insight.id for insight in insights],
+            "insights": [insight.model_dump(mode="python") for insight in insights],
+        }
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"cluster_feedback failed: {exc}",
+            }
+        }
+
+
+@mcp.tool()
+async def create_opportunity(
+    insight_ids: list[str] | None = None,
+    product_hint: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Create an opportunity brief from persisted insights."""
+    try:
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+        from prd_pal.pm.opportunity_service import build_opportunity
+        from prd_pal.pm.repository import PmRepository
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="create_opportunity"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        repository = PmRepository(db_path)
+        init_result = await repository.initialize()
+        if not init_result.ok:
+            message = (
+                init_result.error.message if init_result.error else "initialize failed"
+            )
+            return {"error": {"code": "repository_error", "message": message}}
+
+        insights = []
+        for insight_id in insight_ids or []:
+            result = await repository.get_insight(str(insight_id))
+            if not result.ok or result.value is None:
+                return {
+                    "error": {
+                        "code": "not_found",
+                        "message": f"insight_id not found: {insight_id}",
+                    }
+                }
+            insights.append(result.value)
+        opportunity = await build_opportunity(insights, product_hint=product_hint)
+        await repository.upsert_artifact(
+            artifact_type="opportunity",
+            artifact_id=opportunity.id,
+            payload=opportunity,
+        )
+        return {
+            "opportunity_id": opportunity.id,
+            "opportunity": opportunity.model_dump(mode="python"),
+        }
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"create_opportunity failed: {exc}",
+            }
+        }
+
+
+@mcp.tool()
+async def generate_prd_from_opportunity(
+    opportunity_id: str,
+    product_hint: str = "",
+    run_quality_gate: bool = True,
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Generate a PRD draft from an opportunity and optionally run the review quality gate."""
+    try:
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+        from prd_pal.pm.prd_service import draft_prd_from_opportunity
+        from prd_pal.pm.repository import PmRepository
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="generate_prd_from_opportunity"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        repository = PmRepository(db_path)
+        init_result = await repository.initialize()
+        if not init_result.ok:
+            message = (
+                init_result.error.message if init_result.error else "initialize failed"
+            )
+            return {"error": {"code": "repository_error", "message": message}}
+
+        result = await repository.get_opportunity(str(opportunity_id or "").strip())
+        if not result.ok or result.value is None:
+            return {
+                "error": {
+                    "code": "not_found",
+                    "message": f"opportunity_id not found: {opportunity_id}",
+                }
+            }
+        draft, review_payload = await draft_prd_from_opportunity(
+            result.value,
+            product_hint=product_hint,
+            run_quality_gate=bool(run_quality_gate),
+        )
+        await repository.upsert_artifact(
+            artifact_type="prd",
+            artifact_id=draft.id,
+            payload=draft,
+        )
+        return {
+            "prd_id": draft.id,
+            "review_run_id": draft.review_run_id,
+            "prd": draft.model_dump(mode="python"),
+            "review": review_payload,
+        }
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"generate_prd_from_opportunity failed: {exc}",
+            }
+        }
+
+
+@mcp.tool()
+async def run_pm_pipeline(
+    feedback_texts: list[str] | None = None,
+    product_hint: str = "",
+    source: str = "manual",
+    run_quality_gate: bool = True,
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Run the deterministic PM pipeline from feedback texts through PRD review."""
+    try:
+        from prd_pal.pm import DEFAULT_PM_DB_PATH
+        from prd_pal.pm.workflow import run_pm_pipeline as run_pm_pipeline_impl
+
+        audited = _with_audit_context(
+            options=options, ctx=ctx, tool_name="run_pm_pipeline"
+        )
+        db_path = _pm_db_path_from_options(audited) or str(DEFAULT_PM_DB_PATH)
+        return await run_pm_pipeline_impl(
+            list(feedback_texts or []),
+            product_hint=product_hint,
+            source=source,
+            db_path=db_path,
+            run_quality_gate=bool(run_quality_gate),
+        )
+    except (TypeError, ValueError) as exc:
+        return {"error": {"code": "invalid_input", "message": str(exc)}}
+    except Exception as exc:
+        return {
+            "error": {
+                "code": "internal_error",
+                "message": f"run_pm_pipeline failed: {exc}",
+            }
+        }
+
+
 def _with_audit_context(
     *,
     options: dict[str, Any] | None,
