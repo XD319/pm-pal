@@ -356,4 +356,87 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
                 detail={"code": "invalid_feishu_feedback", "message": str(exc)},
             ) from exc
 
+    @router.post("/delivery/issues")
+    async def create_pm_delivery_issue(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.delivery import create_delivery_issue
+
+        issue = create_delivery_issue(
+            title=str(payload.get("title") or "").strip() or "Untitled delivery issue",
+            system=str(payload.get("system") or "local"),
+            prd_id=str(payload.get("prd_id") or ""),
+            opportunity_id=str(payload.get("opportunity_id") or ""),
+            pipeline_id=str(payload.get("pipeline_id") or ""),
+            evidence_refs=(
+                [str(item) for item in payload.get("evidence_refs")]
+                if isinstance(payload.get("evidence_refs"), list)
+                else None
+            ),
+        )
+        return {"issue_id": issue.id, "issue": issue.model_dump(mode="python")}
+
+    @router.post("/delivery/status")
+    async def update_pm_delivery_status(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.delivery import (
+            DeliveryIssue,
+            DeliveryStatusUpdate,
+            apply_delivery_status_update,
+        )
+
+        issue_payload = payload.get("issue")
+        update_payload = payload.get("update")
+        if not isinstance(issue_payload, dict) or not isinstance(update_payload, dict):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "invalid_delivery_status",
+                    "message": "Both issue and update objects are required.",
+                },
+            )
+        try:
+            issue = DeliveryIssue.model_validate(issue_payload)
+            update = DeliveryStatusUpdate.model_validate(update_payload)
+            updated = apply_delivery_status_update(issue, update)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_delivery_status", "message": str(exc)},
+            ) from exc
+        return {"issue": updated.model_dump(mode="python")}
+
+    @router.post("/launch-reviews")
+    async def create_launch_review(payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.delivery import build_launch_review
+
+        outcome = str(payload.get("outcome") or "mixed").strip().lower()
+        if outcome not in {"win", "mixed", "miss"}:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "invalid_launch_review",
+                    "message": "outcome must be one of: win, mixed, miss",
+                },
+            )
+        review = build_launch_review(
+            prd_id=str(payload.get("prd_id") or ""),
+            pipeline_id=str(payload.get("pipeline_id") or ""),
+            outcome=outcome,  # type: ignore[arg-type]
+            metrics=payload.get("metrics") if isinstance(payload.get("metrics"), dict) else None,
+            learnings=(
+                [str(item) for item in payload.get("learnings")]
+                if isinstance(payload.get("learnings"), list)
+                else None
+            ),
+            follow_ups=(
+                [str(item) for item in payload.get("follow_ups")]
+                if isinstance(payload.get("follow_ups"), list)
+                else None
+            ),
+            evidence_refs=(
+                [str(item) for item in payload.get("evidence_refs")]
+                if isinstance(payload.get("evidence_refs"), list)
+                else None
+            ),
+        )
+        return {"launch_review_id": review.id, "launch_review": review.model_dump(mode="python")}
+
     return router
