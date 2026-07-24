@@ -72,6 +72,7 @@ from prd_pal.server.security import (
     should_skip_request_logging,
 )
 from prd_pal.server.sse import ProgressBroadcaster
+from prd_pal.server.pm_router import create_pm_router
 from prd_pal.service.comparison_service import (
     compare_runs,
     get_run_stats_summary,
@@ -1693,6 +1694,7 @@ app.include_router(
         update_workspace_roadmap=_update_feishu_workspace_roadmap,
     )
 )
+app.include_router(create_pm_router())
 
 
 if FRONTEND_DIST_ROOT.exists():
