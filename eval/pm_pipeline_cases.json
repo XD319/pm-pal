@@ -1,0 +1,51 @@
+[
+  {
+    "case_id": "pm_auth_friction",
+    "product_hint": "commerce",
+    "feedback": [
+      "Login is confusing for first-time users",
+      "MFA resets fail too often",
+      "Password reset emails arrive late"
+    ],
+    "expected_themes": ["auth", "login", "mfa"]
+  },
+  {
+    "case_id": "pm_checkout_mobile",
+    "product_hint": "commerce",
+    "feedback": [
+      "Checkout crashes on mobile Safari",
+      "Coupon apply button disappears on small screens",
+      "Payment confirmation is unclear"
+    ],
+    "expected_themes": ["checkout", "mobile", "payment"]
+  },
+  {
+    "case_id": "pm_search_latency",
+    "product_hint": "catalog",
+    "feedback": [
+      "Category filters make search feel slow",
+      "Faceted search freezes on large catalogs"
+    ],
+    "expected_themes": ["search", "latency"]
+  },
+  {
+    "case_id": "pm_onboarding",
+    "product_hint": "growth",
+    "feedback": [
+      "New users do not know where to start",
+      "Empty states are confusing",
+      "Setup checklist is missing"
+    ],
+    "expected_themes": ["onboarding", "activation"]
+  },
+  {
+    "case_id": "pm_notifications",
+    "product_hint": "engagement",
+    "feedback": [
+      "Too many email notifications",
+      "Important alerts are buried",
+      "No digest mode"
+    ],
+    "expected_themes": ["notifications", "digest"]
+  }
+]
