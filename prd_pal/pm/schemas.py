@@ -43,6 +43,7 @@ class FeedbackItem(AgentSchemaModel):
     id: str = Field(min_length=1)
     text: str = Field(min_length=1)
     source: str = ""
+    product_id: str = ""
     product_hint: str = ""
     created_at: str = ""
     source_refs: SafeStrList = Field(default_factory=list)
@@ -70,6 +71,7 @@ class OpportunityBrief(AgentSchemaModel):
     problem: str = ""
     users: str = ""
     value: str = ""
+    product_id: str = ""
     constraints: SafeStrList = Field(default_factory=list)
     open_questions: SafeStrList = Field(default_factory=list)
     insight_ids: SafeStrList = Field(default_factory=list)
@@ -85,6 +87,7 @@ class PRDDraft(AgentSchemaModel):
     title: str = Field(min_length=1)
     markdown: str = Field(min_length=1)
     opportunity_id: str = ""
+    product_id: str = ""
     goals: SafeStrList = Field(default_factory=list)
     in_scope: SafeStrList = Field(default_factory=list)
     out_of_scope: SafeStrList = Field(default_factory=list)
@@ -104,6 +107,7 @@ class PipelineRunRecord(AgentSchemaModel):
     status: PipelineStatus = PipelineStatus.pending
     stage: PipelineStage = PipelineStage.capture
     product_hint: str = ""
+    product_id: str = ""
     feedback_ids: SafeStrList = Field(default_factory=list)
     insight_ids: SafeStrList = Field(default_factory=list)
     opportunity_id: str = ""
@@ -140,6 +144,7 @@ class OpportunityBriefOutput(AgentSchemaModel):
     problem: str = ""
     users: str = ""
     value: str = ""
+    product_id: str = ""
     constraints: SafeStrList = Field(default_factory=list)
     open_questions: SafeStrList = Field(default_factory=list)
 

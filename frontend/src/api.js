@@ -209,6 +209,21 @@ export function createPmFeedback(payload) {
   });
 }
 
+export function listPmProducts() {
+  return requestJson('/api/pm/products');
+}
+
+export function createPmProduct(payload) {
+  return requestJson('/api/pm/products', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchPmWorkspace(productId) {
+  return requestJson(`/api/pm/products/${encodeURIComponent(productId)}/workspace`);
+}
+
 export function runPmPipeline(payload) {
   return requestJson('/api/pm/pipeline/run', {
     method: 'POST',

@@ -52,12 +52,13 @@ class PmRepository(SQLiteRepositoryBase):
             await connection.execute(
                 """
                 INSERT INTO pm_feedback (
-                    id, text, source, product_hint, created_at,
+                    id, text, source, product_id, product_hint, created_at,
                     source_refs_json, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     text = excluded.text,
                     source = excluded.source,
+                    product_id = excluded.product_id,
                     product_hint = excluded.product_hint,
                     created_at = excluded.created_at,
                     source_refs_json = excluded.source_refs_json,
@@ -67,6 +68,7 @@ class PmRepository(SQLiteRepositoryBase):
                     saved.id,
                     saved.text,
                     saved.source,
+                    saved.product_id,
                     saved.product_hint,
                     saved.created_at,
                     self._dump_json(saved.source_refs),
@@ -83,7 +85,7 @@ class PmRepository(SQLiteRepositoryBase):
             await self._ensure_schema(connection)
             cursor = await connection.execute(
                 """
-                SELECT id, text, source, product_hint, created_at,
+                SELECT id, text, source, product_id, product_hint, created_at,
                        source_refs_json, metadata_json
                 FROM pm_feedback
                 WHERE id = ?
@@ -106,7 +108,7 @@ class PmRepository(SQLiteRepositoryBase):
             if product_hint:
                 cursor = await connection.execute(
                     """
-                    SELECT id, text, source, product_hint, created_at,
+                    SELECT id, text, source, product_id, product_hint, created_at,
                            source_refs_json, metadata_json
                     FROM pm_feedback
                     WHERE product_hint = ?
@@ -118,7 +120,7 @@ class PmRepository(SQLiteRepositoryBase):
             else:
                 cursor = await connection.execute(
                     """
-                    SELECT id, text, source, product_hint, created_at,
+                    SELECT id, text, source, product_id, product_hint, created_at,
                            source_refs_json, metadata_json
                     FROM pm_feedback
                     ORDER BY created_at DESC, id DESC
@@ -145,14 +147,15 @@ class PmRepository(SQLiteRepositoryBase):
             await connection.execute(
                 """
                 INSERT INTO pm_pipeline_run (
-                    id, status, stage, product_hint,
+                    id, status, stage, product_id, product_hint,
                     feedback_ids_json, insight_ids_json,
                     opportunity_id, prd_id, review_run_id, error_message,
                     created_at, updated_at, source_refs_json, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     status = excluded.status,
                     stage = excluded.stage,
+                    product_id = excluded.product_id,
                     product_hint = excluded.product_hint,
                     feedback_ids_json = excluded.feedback_ids_json,
                     insight_ids_json = excluded.insight_ids_json,
@@ -168,6 +171,7 @@ class PmRepository(SQLiteRepositoryBase):
                     saved.id,
                     str(saved.status),
                     str(saved.stage),
+                    saved.product_id,
                     saved.product_hint,
                     self._dump_json(saved.feedback_ids),
                     self._dump_json(saved.insight_ids),
@@ -193,7 +197,7 @@ class PmRepository(SQLiteRepositoryBase):
             await self._ensure_schema(connection)
             cursor = await connection.execute(
                 """
-                SELECT id, status, stage, product_hint,
+                SELECT id, status, stage, product_id, product_hint,
                        feedback_ids_json, insight_ids_json,
                        opportunity_id, prd_id, review_run_id, error_message,
                        created_at, updated_at, source_refs_json, metadata_json
@@ -408,6 +412,26 @@ class PmRepository(SQLiteRepositoryBase):
 
         return await self._run("pm_repository.get_product_context", operation)
 
+    async def list_product_contexts(self) -> RepositoryResult[list[ProductContext]]:
+        async def operation(connection: Any) -> list[ProductContext]:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute("SELECT id, name, module, target_users, business_goals_json, constraints_json, summary, created_at, updated_at, source_refs_json, metadata_json FROM pm_product_context ORDER BY updated_at DESC, id DESC")
+            rows = await cursor.fetchall()
+            return [self._row_to_product_context(row) for row in rows]
+        return await self._run("pm_repository.list_product_contexts", operation)
+
+    async def get_workspace_summary(self, product_id: str) -> RepositoryResult[dict[str, int]]:
+        async def operation(connection: Any) -> dict[str, int]:
+            await self._ensure_schema(connection)
+            async def count(table: str, where: str, args: tuple[str, ...]) -> int:
+                cursor = await connection.execute(f"SELECT COUNT(*) AS total FROM {table} WHERE {where}", args)
+                row = await cursor.fetchone()
+                return int(row["total"])
+            return {
+                "feedback": await count("pm_feedback", "product_id = ?", (product_id,)),
+                "roadmap": await count("pm_roadmap_item", "product_id = ?", (product_id,)),
+            }
+        return await self._run("pm_repository.get_workspace_summary", operation)
     async def upsert_decision(self, decision: Decision) -> RepositoryResult[Decision]:
         async def operation(connection: Any) -> Decision:
             await self._ensure_schema(connection)
@@ -639,6 +663,7 @@ class PmRepository(SQLiteRepositoryBase):
                 id TEXT PRIMARY KEY,
                 text TEXT NOT NULL,
                 source TEXT NOT NULL DEFAULT '',
+                product_id TEXT NOT NULL DEFAULT '',
                 product_hint TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 source_refs_json TEXT NOT NULL DEFAULT '[]',
@@ -649,6 +674,7 @@ class PmRepository(SQLiteRepositoryBase):
                 id TEXT PRIMARY KEY,
                 status TEXT NOT NULL,
                 stage TEXT NOT NULL,
+                product_id TEXT NOT NULL DEFAULT '',
                 product_hint TEXT NOT NULL DEFAULT '',
                 feedback_ids_json TEXT NOT NULL DEFAULT '[]',
                 insight_ids_json TEXT NOT NULL DEFAULT '[]',
@@ -672,7 +698,7 @@ class PmRepository(SQLiteRepositoryBase):
             );
 
             CREATE INDEX IF NOT EXISTS idx_pm_feedback_product
-                ON pm_feedback (product_hint, created_at);
+                ON pm_feedback (product_id, created_at);
 
             CREATE INDEX IF NOT EXISTS idx_pm_pipeline_status
                 ON pm_pipeline_run (status, updated_at);
@@ -748,12 +774,32 @@ class PmRepository(SQLiteRepositoryBase):
                 ON pm_roadmap_item (product_id, horizon, score);
             """
         )
+        for statement in (
+            "ALTER TABLE pm_feedback ADD COLUMN product_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE pm_pipeline_run ADD COLUMN product_id TEXT NOT NULL DEFAULT ''",
+        ):
+            try:
+                await connection.execute(statement)
+            except Exception:
+                pass
 
+    def _row_to_product_context(self, row: Any) -> ProductContext:
+        return ProductContext(
+            id=str(row["id"]), name=str(row["name"]), module=str(row["module"] or ""),
+            target_users=str(row["target_users"] or ""),
+            business_goals=[str(item) for item in self._load_json_list(row["business_goals_json"])],
+            constraints=[str(item) for item in self._load_json_list(row["constraints_json"])],
+            summary=str(row["summary"] or ""), created_at=str(row["created_at"] or ""),
+            updated_at=str(row["updated_at"] or ""),
+            source_refs=[str(item) for item in self._load_json_list(row["source_refs_json"])],
+            metadata=self._load_json_object(row["metadata_json"]),
+        )
     def _row_to_feedback(self, row: Any) -> FeedbackItem:
         return FeedbackItem(
             id=str(row["id"]),
             text=str(row["text"]),
             source=str(row["source"] or ""),
+            product_id=str(row["product_id"] or ""),
             product_hint=str(row["product_hint"] or ""),
             created_at=str(row["created_at"] or ""),
             source_refs=[
@@ -767,6 +813,7 @@ class PmRepository(SQLiteRepositoryBase):
             id=str(row["id"]),
             status=PipelineStatus(str(row["status"])),
             stage=PipelineStage(str(row["stage"])),
+            product_id=str(row["product_id"] or ""),
             product_hint=str(row["product_hint"] or ""),
             feedback_ids=[
                 str(item) for item in self._load_json_list(row["feedback_ids_json"])

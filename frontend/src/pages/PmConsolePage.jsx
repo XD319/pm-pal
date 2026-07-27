@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { runPmPipeline } from '../api';
+import { createPmProduct, fetchPmWorkspace, listPmProducts, runPmPipeline } from '../api';
 import PanelErrorBoundary from '../components/PanelErrorBoundary';
 import { useToast } from '../components/ToastProvider';
 import { formatApiError } from '../utils/errors';
@@ -27,6 +27,31 @@ function PmConsolePage() {
   const [submitState, setSubmitState] = useState('idle');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState('');
+  const [workspace, setWorkspace] = useState(null);
+
+  useEffect(() => {
+    listPmProducts().then((payload) => setProducts(payload.products || [])).catch(() => setProducts([]));
+  }, []);
+
+  useEffect(() => {
+    if (!productId) { setWorkspace(null); return; }
+    fetchPmWorkspace(productId).then(setWorkspace).catch(() => setWorkspace(null));
+  }, [productId]);
+
+  async function handleCreateProduct() {
+    const name = window.prompt('Product name');
+    if (!name?.trim()) return;
+    try {
+      const payload = await createPmProduct({ name: name.trim() });
+      setProducts((current) => [payload.product, ...current]);
+      setProductId(payload.product_id);
+      showToast(`Workspace created: ${payload.product.name}`, 'success');
+    } catch (err) {
+      showToast(formatApiError(err, 'Could not create product.'), 'error');
+    }
+  }
 
   const feedbackCount = useMemo(
     () => splitFeedbackTexts(feedbackText).length,
@@ -48,6 +73,7 @@ function PmConsolePage() {
         feedback_texts: feedbackTexts,
         product_hint: productHint,
         source: 'web',
+        product_id: productId,
         run_quality_gate: runQualityGate,
       });
       setResult(payload);
@@ -72,6 +98,12 @@ function PmConsolePage() {
           </p>
         </div>
       </header>
+
+      <div className="panel pm-workspace-bar">
+        <label className="field"><span>Product workspace</span><select value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Select a product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
+        <button type="button" className="ghost-button" onClick={handleCreateProduct}>New product</button>
+        {workspace ? <p className="empty-copy">{workspace.counts.feedback} feedback items ? {workspace.counts.roadmap} roadmap items</p> : null}
+      </div>
 
       <div className="workspace-grid pm-console-grid">
         <PanelErrorBoundary title="Feedback input">

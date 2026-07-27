@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +21,7 @@ from prd_pal.pm.workflow import capture_feedback, run_pm_pipeline
 class FeedbackCreateRequest(BaseModel):
     texts: list[str] = Field(default_factory=list)
     product_hint: str = ""
+    product_id: str = ""
     source: str = "manual"
 
 
@@ -40,9 +42,20 @@ class PrdGenerateRequest(BaseModel):
     run_quality_gate: bool = True
 
 
+class ProductCreateRequest(BaseModel):
+    id: str = ""
+    name: str = Field(min_length=1)
+    module: str = ""
+    target_users: str = ""
+    business_goals: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    summary: str = ""
+
+
 class PipelineRunRequest(BaseModel):
     feedback_texts: list[str] = Field(default_factory=list)
     product_hint: str = ""
+    product_id: str = ""
     source: str = "manual"
     run_quality_gate: bool = True
 
@@ -69,6 +82,7 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             items = await capture_feedback(
                 payload.texts,
                 product_hint=payload.product_hint,
+                product_id=payload.product_id,
                 source=payload.source,
                 repository=repository,
             )
@@ -222,6 +236,7 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             return await run_pm_pipeline(
                 payload.feedback_texts,
                 product_hint=payload.product_hint,
+                product_id=payload.product_id,
                 source=payload.source,
                 db_path=resolved_db_path,
                 run_quality_gate=payload.run_quality_gate,
@@ -280,12 +295,28 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
                 detail={"code": "invalid_traceability_request", "message": str(exc)},
             ) from exc
 
+    @router.get("/products")
+    async def list_products() -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_product_contexts()
+        products = result.value if result.ok and result.value else []
+        return {"count": len(products), "products": [product.model_dump(mode="python") for product in products]}
+
+    @router.get("/products/{product_id}/workspace")
+    async def get_product_workspace(product_id: str) -> dict[str, Any]:
+        from prd_pal.pm.workspace import build_workspace_summary
+        repository = await _repo()
+        try:
+            return await build_workspace_summary(repository, product_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"code": "product_not_found", "message": str(exc)}) from exc
+
     @router.post("/products")
-    async def upsert_product(payload: dict[str, Any]) -> dict[str, Any]:
+    async def upsert_product(payload: ProductCreateRequest) -> dict[str, Any]:
         from prd_pal.pm.models import ProductContext
 
         repository = await _repo()
-        product = ProductContext.model_validate(payload)
+        product = ProductContext(id=payload.id or f"product-{uuid.uuid4().hex[:12]}", **payload.model_dump(exclude={"id"}))
         result = await repository.upsert_product_context(product)
         if not result.ok or result.value is None:
             message = result.error.message if result.error else "persist failed"

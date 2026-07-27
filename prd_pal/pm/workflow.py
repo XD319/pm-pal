@@ -33,6 +33,7 @@ async def capture_feedback(
     texts: list[str],
     *,
     product_hint: str = "",
+    product_id: str = "",
     source: str = "manual",
     repository: PmRepository | None = None,
 ) -> list[FeedbackItem]:
@@ -47,6 +48,7 @@ async def capture_feedback(
             id=_new_feedback_id(),
             text=text,
             source=source,
+            product_id=product_id,
             product_hint=product_hint,
             source_refs=[f"input:{index}"],
         )
@@ -65,6 +67,7 @@ async def run_pm_pipeline(
     feedback_texts: list[str],
     *,
     product_hint: str = "",
+    product_id: str = "",
     source: str = "manual",
     db_path: str | Path | None = None,
     repository: PmRepository | None = None,
@@ -94,6 +97,7 @@ async def run_pm_pipeline(
         status=PipelineStatus.running,
         stage=PipelineStage.capture,
         product_hint=product_hint,
+        product_id=product_id,
     )
     await repo.upsert_pipeline_run(record)
 
@@ -108,6 +112,7 @@ async def run_pm_pipeline(
             feedback_texts,
             product_hint=product_hint,
             source=source,
+            product_id=product_id,
             repository=repo,
         )
         record = record.model_copy(
@@ -194,6 +199,7 @@ async def run_pm_pipeline(
         "status": str(record.status),
         "stage": str(record.stage),
         "product_hint": product_hint,
+        "product_id": product_id,
         "feedback_ids": [item.id for item in feedback_items],
         "insight_ids": [insight.id for insight in insights],
         "opportunity_id": opportunity.id if opportunity else "",

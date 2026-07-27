@@ -103,3 +103,17 @@ def test_get_pipeline_not_found(tmp_path) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "pipeline_not_found"
+
+
+def test_product_workspace_endpoints(tmp_path) -> None:
+    with _make_client(tmp_path) as client:
+        created = client.post("/api/pm/products", json={"name": "Commerce", "target_users": "buyers"})
+        assert created.status_code == 200
+        product_id = created.json()["product_id"]
+        listed = client.get("/api/pm/products")
+        workspace = client.get(f"/api/pm/products/{product_id}/workspace")
+    assert listed.status_code == 200
+    assert listed.json()["count"] == 1
+    assert workspace.status_code == 200
+    assert workspace.json()["product"]["name"] == "Commerce"
+    assert workspace.json()["counts"] == {"feedback": 0, "roadmap": 0}
