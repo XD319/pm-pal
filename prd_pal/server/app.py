@@ -73,6 +73,7 @@ from prd_pal.server.security import (
 )
 from prd_pal.server.sse import ProgressBroadcaster
 from prd_pal.server.pm_router import create_pm_router
+from prd_pal.product_decision.router import create_product_decision_router
 from prd_pal.service.comparison_service import (
     compare_runs,
     get_run_stats_summary,
@@ -109,6 +110,7 @@ from prd_pal.workspace import (
 
 OUTPUTS_ROOT = Path("outputs")
 WORKSPACE_DB_PATH = Path("data") / "workspace.sqlite3"
+PRODUCT_DECISION_DB_PATH = Path("data") / "product_decision.sqlite3"
 FRONTEND_DIST_ROOT = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 ARTIFACT_REVIEW_RUN_TABLE = "artifact_review_runs"
 log = get_logger("server.http")
@@ -1695,6 +1697,7 @@ app.include_router(
     )
 )
 app.include_router(create_pm_router())
+app.include_router(create_product_decision_router(db_path=PRODUCT_DECISION_DB_PATH))
 
 
 if FRONTEND_DIST_ROOT.exists():
