@@ -220,22 +220,40 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
                 },
             )
         opportunity: OpportunityBrief = result.value
+        decisions = await repository.list_decisions(product_id=opportunity.product_id or None)
+        approved = any(decision.metadata.get("opportunity_id") == opportunity_id and str(decision.status) == "approved" for decision in (decisions.value or []))
+        if not approved:
+            raise HTTPException(status_code=409, detail={"code": "opportunity_not_approved", "message": "Approve the opportunity before generating a PRD."})
         draft, review_payload = await draft_prd_from_opportunity(
             opportunity,
             product_hint=payload.product_hint,
             run_quality_gate=payload.run_quality_gate,
         )
-        await repository.upsert_artifact(
-            artifact_type="prd",
-            artifact_id=draft.id,
-            payload=draft,
-        )
+        draft = draft.model_copy(update={"product_id": opportunity.product_id, "status": "in_review" if draft.review_run_id else "draft"})
+        await repository.upsert_artifact(artifact_type="prd", artifact_id=draft.id, payload=draft)
         return {
             "prd_id": draft.id,
             "review_run_id": draft.review_run_id,
             "prd": draft.model_dump(mode="python"),
             "review": review_payload,
         }
+
+    @router.put("/prds/{prd_id}")
+    async def update_prd_lifecycle(prd_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.schemas import PRDStatus
+        repository = await _repo()
+        result = await repository.get_prd(prd_id)
+        if not result.ok or result.value is None:
+            raise HTTPException(status_code=404, detail={"code": "prd_not_found", "message": prd_id})
+        try:
+            status = PRDStatus(str(payload.get("status") or result.value.status))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_prd_status", "message": str(exc)}) from exc
+        if status == PRDStatus.ready_for_delivery and result.value.status not in {PRDStatus.approved, PRDStatus.waived}:
+            raise HTTPException(status_code=409, detail={"code": "quality_gate_not_satisfied", "message": "Approve or waive review before delivery."})
+        updated = result.value.model_copy(update={"markdown": str(payload.get("markdown") or result.value.markdown), "status": status, "version": result.value.version + 1})
+        await repository.upsert_artifact(artifact_type="prd", artifact_id=prd_id, payload=updated)
+        return {"prd": updated.model_dump(mode="python")}
 
     @router.post("/pipeline/run")
     async def run_pipeline(payload: PipelineRunRequest) -> dict[str, Any]:

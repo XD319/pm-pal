@@ -80,6 +80,14 @@ class OpportunityBrief(AgentSchemaModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class PRDStatus(StrEnum):
+    draft = "draft"
+    in_review = "in_review"
+    approved = "approved"
+    waived = "waived"
+    ready_for_delivery = "ready_for_delivery"
+
+
 class PRDDraft(AgentSchemaModel):
     """PRD draft generated from an opportunity, optionally linked to a review run."""
 
@@ -88,6 +96,8 @@ class PRDDraft(AgentSchemaModel):
     markdown: str = Field(min_length=1)
     opportunity_id: str = ""
     product_id: str = ""
+    status: PRDStatus = PRDStatus.draft
+    version: int = 1
     goals: SafeStrList = Field(default_factory=list)
     in_scope: SafeStrList = Field(default_factory=list)
     out_of_scope: SafeStrList = Field(default_factory=list)

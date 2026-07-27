@@ -142,3 +142,19 @@ def test_opportunity_decision_workflow(tmp_path) -> None:
         decisions = client.get("/api/pm/decisions?product_id=p-1")
     assert response.status_code == 200
     assert decisions.json()["decisions"][0]["status"] == "approved"
+
+
+def test_prd_delivery_requires_quality_gate(tmp_path) -> None:
+    from prd_pal.pm.schemas import PRDDraft
+    from prd_pal.pm.repository import PmRepository
+    import asyncio
+    repo = PmRepository(tmp_path / "pm.sqlite3")
+    asyncio.run(repo.initialize())
+    asyncio.run(repo.upsert_artifact(artifact_type="prd", artifact_id="prd-gate", payload=PRDDraft(id="prd-gate", title="Draft", markdown="# Draft")))
+    with _make_client(tmp_path) as client:
+        blocked = client.put("/api/pm/prds/prd-gate", json={"status": "ready_for_delivery"})
+        approved = client.put("/api/pm/prds/prd-gate", json={"status": "approved"})
+        ready = client.put("/api/pm/prds/prd-gate", json={"status": "ready_for_delivery"})
+    assert blocked.status_code == 409
+    assert approved.status_code == 200
+    assert ready.json()["prd"]["status"] == "ready_for_delivery"
