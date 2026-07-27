@@ -519,9 +519,12 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             )
         review = build_launch_review(
             prd_id=str(payload.get("prd_id") or ""),
+            product_id=str(payload.get("product_id") or ""),
             pipeline_id=str(payload.get("pipeline_id") or ""),
             outcome=outcome,  # type: ignore[arg-type]
             metrics=payload.get("metrics") if isinstance(payload.get("metrics"), dict) else None,
+            baseline_metrics=payload.get("baseline_metrics") if isinstance(payload.get("baseline_metrics"), dict) else None,
+            target_metrics=payload.get("target_metrics") if isinstance(payload.get("target_metrics"), dict) else None,
             learnings=(
                 [str(item) for item in payload.get("learnings")]
                 if isinstance(payload.get("learnings"), list)
@@ -538,6 +541,17 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
                 else None
             ),
         )
+        repository = await _repo()
+        await repository.upsert_launch_review(review)
+        if review.follow_ups:
+            await capture_feedback(review.follow_ups, product_id=review.product_id, source="launch_review", repository=repository)
         return {"launch_review_id": review.id, "launch_review": review.model_dump(mode="python")}
+
+    @router.get("/launch-reviews")
+    async def list_launch_reviews(product_id: str | None = None) -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_launch_reviews(product_id=product_id)
+        items = result.value if result.ok and result.value else []
+        return {"count": len(items), "launch_reviews": items}
 
     return router

@@ -57,9 +57,12 @@ class LaunchReview(AgentSchemaModel):
 
     id: str = Field(min_length=1)
     prd_id: str = ""
+    product_id: str = ""
     pipeline_id: str = ""
     outcome: Literal["win", "mixed", "miss"] = "mixed"
     metrics: dict[str, float] = Field(default_factory=dict)
+    baseline_metrics: dict[str, float] = Field(default_factory=dict)
+    target_metrics: dict[str, float] = Field(default_factory=dict)
     learnings: SafeStrList = Field(default_factory=list)
     follow_ups: SafeStrList = Field(default_factory=list)
     evidence_refs: SafeStrList = Field(default_factory=list)
@@ -127,8 +130,11 @@ def build_launch_review(
     *,
     prd_id: str = "",
     pipeline_id: str = "",
+    product_id: str = "",
     outcome: Literal["win", "mixed", "miss"] = "mixed",
     metrics: dict[str, float] | None = None,
+    baseline_metrics: dict[str, float] | None = None,
+    target_metrics: dict[str, float] | None = None,
     learnings: list[str] | None = None,
     follow_ups: list[str] | None = None,
     evidence_refs: list[str] | None = None,
@@ -139,8 +145,11 @@ def build_launch_review(
         id=_new_launch_id(),
         prd_id=prd_id,
         pipeline_id=pipeline_id,
+        product_id=product_id,
         outcome=outcome,
         metrics=dict(metrics or {}),
+        baseline_metrics=dict(baseline_metrics or {}),
+        target_metrics=dict(target_metrics or {}),
         learnings=list(learnings or []),
         follow_ups=list(follow_ups or []),
         evidence_refs=list(evidence_refs or []),

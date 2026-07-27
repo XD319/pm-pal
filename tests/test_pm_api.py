@@ -172,3 +172,13 @@ def test_ready_prd_generates_feishu_handoff_bundle(tmp_path) -> None:
     assert response.status_code == 200
     assert response.json()["handoff"]["sync_status"] == "pending_configuration"
     assert len(response.json()["handoff"]["tasks"]) == 3
+
+
+def test_launch_review_is_persisted_and_feeds_back(tmp_path) -> None:
+    with _make_client(tmp_path) as client:
+        created = client.post("/api/pm/launch-reviews", json={"product_id": "p-1", "prd_id": "prd-1", "outcome": "mixed", "metrics": {"activation": 42}, "follow_ups": ["Improve activation onboarding"]})
+        reviews = client.get("/api/pm/launch-reviews?product_id=p-1")
+        feedback = client.get("/api/pm/feedback?product_id=p-1")
+    assert created.status_code == 200
+    assert reviews.json()["count"] == 1
+    assert feedback.json()["feedback"][0]["source"] == "launch_review"

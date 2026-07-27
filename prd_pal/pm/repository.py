@@ -627,6 +627,25 @@ class PmRepository(SQLiteRepositoryBase):
 
         return await self._run("pm_repository.list_roadmap_items", operation)
 
+    async def upsert_launch_review(self, review: Any) -> RepositoryResult[Any]:
+        async def operation(connection: Any) -> Any:
+            await self._ensure_schema(connection)
+            await connection.execute("INSERT INTO pm_launch_review (id, prd_id, product_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json", (review.id, review.prd_id, review.product_id, self._dump_json(review.model_dump(mode="python")), utc_now_iso()))
+            await connection.commit()
+            return review
+        return await self._run("pm_repository.upsert_launch_review", operation)
+
+    async def list_launch_reviews(self, *, product_id: str | None = None) -> RepositoryResult[list[dict[str, Any]]]:
+        async def operation(connection: Any) -> list[dict[str, Any]]:
+            await self._ensure_schema(connection)
+            query = "SELECT payload_json FROM pm_launch_review"
+            args: tuple[str, ...] = ()
+            if product_id:
+                query += " WHERE product_id = ?"; args = (product_id,)
+            cursor = await connection.execute(query + " ORDER BY created_at DESC", args)
+            return [self._load_json_object(row["payload_json"]) for row in await cursor.fetchall()]
+        return await self._run("pm_repository.list_launch_reviews", operation)
+
     async def upsert_trace_link(self, link: TraceLink) -> RepositoryResult[TraceLink]:
         async def operation(connection: Any) -> TraceLink:
             await self._ensure_schema(connection)
@@ -790,6 +809,14 @@ class PmRepository(SQLiteRepositoryBase):
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL DEFAULT '',
                 metadata_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS pm_launch_review (
+                id TEXT PRIMARY KEY,
+                prd_id TEXT NOT NULL DEFAULT '',
+                product_id TEXT NOT NULL DEFAULT '',
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS pm_trace_link (
