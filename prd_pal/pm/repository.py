@@ -285,6 +285,14 @@ class PmRepository(SQLiteRepositoryBase):
 
         return await self._run("pm_repository.get_artifact", operation)
 
+    async def list_artifacts(self, artifact_type: ArtifactType) -> RepositoryResult[list[dict[str, Any]]]:
+        async def operation(connection: Any) -> list[dict[str, Any]]:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute("SELECT id, artifact_type, pipeline_id, payload_json, created_at, updated_at FROM pm_artifact WHERE artifact_type = ? ORDER BY updated_at DESC", (artifact_type,))
+            rows = await cursor.fetchall()
+            return [{"id": str(row["id"]), "artifact_type": str(row["artifact_type"]), "pipeline_id": str(row["pipeline_id"] or ""), "payload": self._load_json_object(row["payload_json"]), "created_at": str(row["created_at"] or ""), "updated_at": str(row["updated_at"] or "")} for row in rows]
+        return await self._run("pm_repository.list_artifacts", operation)
+
     async def get_insight(self, insight_id: str) -> RepositoryResult[InsightCluster]:
         from prd_pal.workspace.repository_support import RepositoryErrorCode
 
@@ -486,6 +494,28 @@ class PmRepository(SQLiteRepositoryBase):
             return saved
 
         return await self._run("pm_repository.upsert_decision", operation)
+
+    async def get_decision(self, decision_id: str) -> RepositoryResult[Decision]:
+        async def operation(connection: Any) -> Decision:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute("SELECT id, product_id, title, status, summary, rationale, evidence_refs_json, source_refs_json, created_at, updated_at, metadata_json FROM pm_decision WHERE id = ?", (decision_id,))
+            row = await cursor.fetchone()
+            if row is None:
+                self._raise_not_found("decision", decision_id)
+            return self._row_to_decision(row)
+        return await self._run("pm_repository.get_decision", operation)
+
+    async def list_decisions(self, *, product_id: str | None = None) -> RepositoryResult[list[Decision]]:
+        async def operation(connection: Any) -> list[Decision]:
+            await self._ensure_schema(connection)
+            query = "SELECT id, product_id, title, status, summary, rationale, evidence_refs_json, source_refs_json, created_at, updated_at, metadata_json FROM pm_decision"
+            args: tuple[str, ...] = ()
+            if product_id:
+                query += " WHERE product_id = ?"
+                args = (product_id,)
+            cursor = await connection.execute(query + " ORDER BY updated_at DESC", args)
+            return [self._row_to_decision(row) for row in await cursor.fetchall()]
+        return await self._run("pm_repository.list_decisions", operation)
 
     async def upsert_roadmap_item(
         self, item: RoadmapItem
@@ -791,6 +821,10 @@ class PmRepository(SQLiteRepositoryBase):
                 await connection.execute(statement)
             except Exception:
                 pass
+
+    def _row_to_decision(self, row: Any) -> Decision:
+        from .models import DecisionStatus
+        return Decision(id=str(row["id"]), product_id=str(row["product_id"] or ""), title=str(row["title"]), status=DecisionStatus(str(row["status"])), summary=str(row["summary"] or ""), rationale=str(row["rationale"] or ""), evidence_refs=[str(item) for item in self._load_json_list(row["evidence_refs_json"])], source_refs=[str(item) for item in self._load_json_list(row["source_refs_json"])], created_at=str(row["created_at"] or ""), updated_at=str(row["updated_at"] or ""), metadata=self._load_json_object(row["metadata_json"]))
 
     def _row_to_product_context(self, row: Any) -> ProductContext:
         return ProductContext(

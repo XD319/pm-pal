@@ -128,3 +128,17 @@ def test_feishu_feedback_inbox_preserves_evidence(tmp_path) -> None:
     item = inbox.json()["feedback"][0]
     assert item["source_refs"] == ["https://example.feishu.cn/docx/abc"]
     assert item["metadata"]["open_id"] == "ou-1"
+
+
+def test_opportunity_decision_workflow(tmp_path) -> None:
+    with _make_client(tmp_path) as client:
+        from prd_pal.pm.schemas import OpportunityBrief
+        from prd_pal.pm.repository import PmRepository
+        import asyncio
+        repo = PmRepository(tmp_path / "pm.sqlite3")
+        asyncio.run(repo.initialize())
+        asyncio.run(repo.upsert_artifact(artifact_type="opportunity", artifact_id="opp-1", payload=OpportunityBrief(id="opp-1", title="Fix login", problem="Users abandon login", product_id="p-1")))
+        response = client.post("/api/pm/opportunities/opp-1/decision", json={"status": "approved", "rationale": "High impact", "product_id": "p-1"})
+        decisions = client.get("/api/pm/decisions?product_id=p-1")
+    assert response.status_code == 200
+    assert decisions.json()["decisions"][0]["status"] == "approved"

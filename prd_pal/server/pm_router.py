@@ -289,6 +289,35 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
         payload["insights"] = insights
         return payload
 
+    @router.get("/opportunities")
+    async def list_opportunities() -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_artifacts("opportunity")
+        items = result.value if result.ok and result.value else []
+        return {"count": len(items), "opportunities": [item["payload"] for item in items]}
+
+    @router.post("/opportunities/{opportunity_id}/decision")
+    async def decide_opportunity(opportunity_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.models import Decision, DecisionStatus
+        repository = await _repo()
+        opportunity = await repository.get_opportunity(opportunity_id)
+        if not opportunity.ok or opportunity.value is None:
+            raise HTTPException(status_code=404, detail={"code": "opportunity_not_found", "message": opportunity_id})
+        try:
+            status = DecisionStatus(str(payload.get("status") or "proposed"))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_status", "message": str(exc)}) from exc
+        decision = Decision(id=f"decision-{uuid.uuid4().hex[:12]}", product_id=str(payload.get("product_id") or opportunity.value.product_id), title=opportunity.value.title, status=status, summary=opportunity.value.problem, rationale=str(payload.get("rationale") or ""), evidence_refs=list(opportunity.value.evidence_refs), source_refs=[f"opportunity:{opportunity_id}"], metadata={"opportunity_id": opportunity_id})
+        saved = await repository.upsert_decision(decision)
+        return {"decision": saved.value.model_dump(mode="python") if saved.value else None}
+
+    @router.get("/decisions")
+    async def list_decisions(product_id: str | None = None) -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_decisions(product_id=product_id)
+        items = result.value if result.ok and result.value else []
+        return {"count": len(items), "decisions": [item.model_dump(mode="python") for item in items]}
+
     @router.get("/traceability/{root_id}")
     async def get_traceability(root_id: str) -> dict[str, Any]:
         from prd_pal.pm.traceability import get_pm_traceability
