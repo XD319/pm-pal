@@ -52,6 +52,8 @@ async def capture_feishu_feedback(
     *,
     texts: list[str],
     product_hint: str = "",
+    product_id: str = "",
+    source_url: str = "",
     open_id: str = "",
     tenant_key: str = "",
     repository: PmRepository,
@@ -61,13 +63,14 @@ async def capture_feishu_feedback(
     items = await capture_feedback(
         texts,
         product_hint=product_hint,
+        product_id=product_id,
         source="feishu",
         repository=repository,
     )
     for item in items:
         metadata = dict(item.metadata or {})
-        metadata.update({"open_id": open_id, "tenant_key": tenant_key})
-        updated = item.model_copy(update={"metadata": metadata})
+        metadata.update({"open_id": open_id, "tenant_key": tenant_key, "source_url": source_url, "retryable": True})
+        updated = item.model_copy(update={"metadata": metadata, "source_refs": ([source_url] if source_url else item.source_refs)})
         await repository.upsert_feedback(updated)
     card = build_feedback_card(
         product_hint=product_hint,

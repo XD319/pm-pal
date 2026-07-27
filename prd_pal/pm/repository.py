@@ -100,12 +100,21 @@ class PmRepository(SQLiteRepositoryBase):
         return await self._run("pm_repository.get_feedback", operation)
 
     async def list_feedback(
-        self, *, product_hint: str | None = None, limit: int = 100
+        self, *, product_hint: str | None = None, product_id: str | None = None, limit: int = 100
     ) -> RepositoryResult[list[FeedbackItem]]:
         async def operation(connection: Any) -> list[FeedbackItem]:
             await self._ensure_schema(connection)
             limit_value = max(1, int(limit))
-            if product_hint:
+            if product_id:
+                cursor = await connection.execute(
+                    """
+                    SELECT id, text, source, product_id, product_hint, created_at,
+                           source_refs_json, metadata_json
+                    FROM pm_feedback WHERE product_id = ?
+                    ORDER BY created_at DESC, id DESC LIMIT ?
+                    """, (product_id, limit_value)
+                )
+            elif product_hint:
                 cursor = await connection.execute(
                     """
                     SELECT id, text, source, product_id, product_hint, created_at,

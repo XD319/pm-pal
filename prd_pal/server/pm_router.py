@@ -75,6 +75,13 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             )
         return repository
 
+    @router.get("/feedback")
+    async def list_feedback(product_id: str | None = None, limit: int = 100) -> dict[str, Any]:
+        repository = await _repo()
+        result = await repository.list_feedback(product_id=product_id, limit=limit)
+        items = result.value if result.ok and result.value else []
+        return {"count": len(items), "feedback": [item.model_dump(mode="python") for item in items]}
+
     @router.post("/feedback")
     async def create_feedback(payload: FeedbackCreateRequest) -> dict[str, Any]:
         repository = await _repo()
@@ -377,6 +384,8 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             return await capture_feishu_feedback(
                 texts=[str(item) for item in texts],
                 product_hint=str(payload.get("product_hint") or ""),
+                product_id=str(payload.get("product_id") or ""),
+                source_url=str(payload.get("source_url") or ""),
                 open_id=str(payload.get("open_id") or ""),
                 tenant_key=str(payload.get("tenant_key") or ""),
                 repository=repository,
