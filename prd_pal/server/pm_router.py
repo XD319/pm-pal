@@ -380,6 +380,20 @@ def create_pm_router(*, db_path: str | Path | None = None) -> APIRouter:
             )
         return {"product_id": result.value.id, "product": result.value.model_dump(mode="python")}
 
+    @router.post("/prds/{prd_id}/handoff")
+    async def create_prd_handoff(prd_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from prd_pal.pm.delivery import build_delivery_bundle
+        from prd_pal.pm.schemas import PRDStatus
+        repository = await _repo()
+        result = await repository.get_prd(prd_id)
+        if not result.ok or result.value is None:
+            raise HTTPException(status_code=404, detail={"code": "prd_not_found", "message": prd_id})
+        prd = result.value
+        if prd.status != PRDStatus.ready_for_delivery:
+            raise HTTPException(status_code=409, detail={"code": "prd_not_ready_for_delivery", "message": "Complete the PRD quality gate before handoff."})
+        bundle = build_delivery_bundle(prd_id=prd.id, title=prd.title, acceptance_criteria=list(prd.acceptance_criteria), risks=list(prd.risks), evidence_refs=list(prd.evidence_refs), system=str(payload.get("system") or "local"))
+        return {"handoff": bundle}
+
     @router.post("/roadmap/items")
     async def create_roadmap_item(payload: dict[str, Any]) -> dict[str, Any]:
         from prd_pal.pm.roadmap import build_roadmap_item_from_opportunity

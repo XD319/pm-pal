@@ -23,6 +23,7 @@ class DeliverySystem(StrEnum):
     linear = "linear"
     jira = "jira"
     local = "local"
+    feishu = "feishu"
 
 
 class DeliveryIssue(AgentSchemaModel):
@@ -144,3 +145,14 @@ def build_launch_review(
         follow_ups=list(follow_ups or []),
         evidence_refs=list(evidence_refs or []),
     )
+
+
+def build_delivery_bundle(*, prd_id: str, title: str, acceptance_criteria: list[str], risks: list[str], evidence_refs: list[str], system: DeliverySystem | str = DeliverySystem.local) -> dict[str, Any]:
+    """Create an idempotency-keyed handoff bundle; remote sync is opt-in."""
+    target = DeliverySystem(system)
+    tasks = [
+        {"type": "engineering", "title": f"Implement: {title}", "description": "\n".join(acceptance_criteria)},
+        {"type": "qa", "title": f"Validate: {title}", "description": "\n".join(acceptance_criteria + risks)},
+        {"type": "launch", "title": f"Launch check: {title}", "description": "Review risks and release checklist."},
+    ]
+    return {"prd_id": prd_id, "system": target.value, "sync_status": "pending_configuration" if target == DeliverySystem.feishu else "local_only", "idempotency_key": f"handoff:{prd_id}", "tasks": tasks, "evidence_refs": evidence_refs}

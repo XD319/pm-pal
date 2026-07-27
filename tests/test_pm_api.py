@@ -158,3 +158,17 @@ def test_prd_delivery_requires_quality_gate(tmp_path) -> None:
     assert blocked.status_code == 409
     assert approved.status_code == 200
     assert ready.json()["prd"]["status"] == "ready_for_delivery"
+
+
+def test_ready_prd_generates_feishu_handoff_bundle(tmp_path) -> None:
+    from prd_pal.pm.schemas import PRDDraft, PRDStatus
+    from prd_pal.pm.repository import PmRepository
+    import asyncio
+    repo = PmRepository(tmp_path / "pm.sqlite3")
+    asyncio.run(repo.initialize())
+    asyncio.run(repo.upsert_artifact(artifact_type="prd", artifact_id="prd-ready", payload=PRDDraft(id="prd-ready", title="Login", markdown="# Login", status=PRDStatus.ready_for_delivery, acceptance_criteria=["User can log in"])))
+    with _make_client(tmp_path) as client:
+        response = client.post("/api/pm/prds/prd-ready/handoff", json={"system": "feishu"})
+    assert response.status_code == 200
+    assert response.json()["handoff"]["sync_status"] == "pending_configuration"
+    assert len(response.json()["handoff"]["tasks"]) == 3
