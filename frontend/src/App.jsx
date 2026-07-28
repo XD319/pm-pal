@@ -5,6 +5,9 @@ import RouteLoadingFallback from './components/RouteLoadingFallback';
 import { useTheme } from './hooks/useTheme';
 import FeishuEntryPage from './pages/FeishuEntryPage';
 import HomePage from './pages/HomePage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
+import ProviderSettingsPage from './pages/ProviderSettingsPage';
 import './styles/layout.css';
 
 const RunDetailsPage = lazy(() => import('./pages/RunDetailsPage'));
@@ -54,7 +57,11 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<ProjectsPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+        <Route path="settings/providers" element={<ProviderSettingsPage />} />
+        <Route path="developer" element={<HomePage />} />
         <Route path="feishu" element={<FeishuEntryPage />} />
         <Route
           path="run/:runId"

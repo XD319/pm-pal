@@ -394,3 +394,13 @@ export async function downloadReportArtifact(runId, format) {
   anchor.remove();
   window.URL.revokeObjectURL(url);
 }
+export function listProjects() { return requestJson('/api/projects'); }
+export function getProject(projectId) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}`); }
+export function createProject(payload) { return requestJson('/api/projects', { method: 'POST', body: JSON.stringify(payload) }); }
+export function addProjectSource(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources`, { method: 'POST', body: JSON.stringify(payload) }); }
+export function createProjectReview(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/reviews`, { method: 'POST', body: JSON.stringify(payload) }); }
+export function getProjectTimeline(projectId) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/timeline`); }
+export function fetchProviderCatalog() { return requestJson('/api/provider-catalog'); }
+export function listProviderConnections() { return requestJson('/api/provider-connections'); }
+export function createProviderConnection(payload) { return requestJson('/api/provider-connections', { method: 'POST', body: JSON.stringify(payload) }); }
+export function testProviderConnection(connectionId) { return requestJson(`/api/provider-connections/${encodeURIComponent(connectionId)}/test`, { method: 'POST', body: '{}' }); }
