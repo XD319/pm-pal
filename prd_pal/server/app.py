@@ -73,7 +73,10 @@ from prd_pal.server.security import (
 )
 from prd_pal.server.sse import ProgressBroadcaster
 from prd_pal.server.pm_router import create_pm_router
-from prd_pal.product_decision.router import create_product_decision_router
+from prd_pal.product_decision.router import (
+    build_default_sync_stack,
+    create_product_decision_router,
+)
 from prd_pal.service.comparison_service import (
     compare_runs,
     get_run_stats_summary,
@@ -111,19 +114,38 @@ from prd_pal.workspace import (
 OUTPUTS_ROOT = Path("outputs")
 WORKSPACE_DB_PATH = Path("data") / "workspace.sqlite3"
 PRODUCT_DECISION_DB_PATH = Path("data") / "product_decision.sqlite3"
+PRODUCT_DECISION_ARTIFACTS_ROOT = Path("data") / "artifacts"
 FRONTEND_DIST_ROOT = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 ARTIFACT_REVIEW_RUN_TABLE = "artifact_review_runs"
 log = get_logger("server.http")
+
+(
+    _product_decision_repository,
+    _product_decision_sync_service,
+    _product_decision_scheduler,
+) = build_default_sync_stack(
+    db_path=PRODUCT_DECISION_DB_PATH,
+    artifacts_root=PRODUCT_DECISION_ARTIFACTS_ROOT,
+)
 
 
 @asynccontextmanager
 async def _app_lifespan(app: FastAPI):
     load_dotenv()
     OUTPUTS_ROOT.mkdir(parents=True, exist_ok=True)
+    PRODUCT_DECISION_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PRODUCT_DECISION_ARTIFACTS_ROOT.mkdir(parents=True, exist_ok=True)
     await _job_registry.recover()
+    await _product_decision_repository.initialize()
+    _product_decision_scheduler.start()
+    app.state.product_decision_sync = _product_decision_sync_service
+    app.state.product_decision_scheduler = _product_decision_scheduler
     app.state.startup_completed = True
-    yield
-    app.state.startup_completed = False
+    try:
+        yield
+    finally:
+        await _product_decision_scheduler.stop()
+        app.state.startup_completed = False
 
 
 app = FastAPI(title="Requirement Review V2 API", version="2.0", lifespan=_app_lifespan)
@@ -1052,10 +1074,15 @@ async def _handle_unexpected_error(_: Request, exc: Exception) -> JSONResponse:
 
 @app.get("/health")
 def healthcheck() -> dict[str, Any]:
+    scheduler = getattr(app.state, "product_decision_scheduler", None)
     return {
         "ok": True,
         "status": "healthy",
         "service": "requirement-review-v1",
+        "decision_workspace": {
+            "evidence_sync_scheduler": bool(scheduler is not None),
+            "db_path": str(PRODUCT_DECISION_DB_PATH),
+        },
     }
 
 
@@ -1697,7 +1724,13 @@ app.include_router(
     )
 )
 app.include_router(create_pm_router())
-app.include_router(create_product_decision_router(db_path=PRODUCT_DECISION_DB_PATH))
+app.include_router(
+    create_product_decision_router(
+        db_path=PRODUCT_DECISION_DB_PATH,
+        sync_service=_product_decision_sync_service,
+        artifacts_root=PRODUCT_DECISION_ARTIFACTS_ROOT,
+    )
+)
 
 
 if FRONTEND_DIST_ROOT.exists():

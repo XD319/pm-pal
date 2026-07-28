@@ -15,12 +15,20 @@ class SourceSyncStatus(StrEnum):
     failed = "failed"
 
 
+class EvidenceSourceType(StrEnum):
+    feishu_doc = "feishu_doc"
+    feishu_meeting_notes = "feishu_meeting_notes"
+    feishu_bitable = "feishu_bitable"
+
+
 class EvidenceSource(AgentSchemaModel):
     id: str = Field(min_length=1)
     product_id: str = ""
-    source_type: str = Field(min_length=1)
+    source_type: EvidenceSourceType | str = Field(min_length=1)
+    external_id: str = ""
     source_url: str = ""
     display_name: str = ""
+    field_mapping: dict[str, str] = Field(default_factory=dict)
     sync_status: SourceSyncStatus = SourceSyncStatus.idle
     sync_cursor: str = ""
     last_synced_at: str = ""
@@ -29,7 +37,7 @@ class EvidenceSource(AgentSchemaModel):
 
 
 class EvidenceRecord(AgentSchemaModel):
-    id: str = Field(min_length=1)
+    id: str = ""
     source_id: str = Field(min_length=1)
     external_id: str = Field(min_length=1)
     product_id: str = ""
@@ -40,7 +48,13 @@ class EvidenceRecord(AgentSchemaModel):
     author: str = ""
     occurred_at: str = ""
     source_version: str = ""
+    confirmed: bool = False
     source_refs: SafeStrList = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
+
+
+class SyncTrigger(StrEnum):
+    scheduled = "scheduled"
+    manual = "manual"
