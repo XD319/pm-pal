@@ -17,9 +17,15 @@ from pydantic import BaseModel, Field, model_validator
 
 from prd_pal.runtime.llm_provider.generic.base import _SUPPORTED_PROVIDERS
 from prd_pal.connectors.feishu_sync import register_feishu_sync_handler
+from prd_pal.connectors.github_sync import register_github_sync_handler
+from prd_pal.connectors.notion_sync import register_notion_sync_handler
 from prd_pal.connectors.sync import ConnectorSyncStore, register_connector_sync_routes
 from prd_pal.integrations.feishu.config_routes import register_feishu_connector_config_routes
 from prd_pal.integrations.feishu.config_store import FeishuConfigStore
+from prd_pal.integrations.github.config_routes import register_github_connector_config_routes
+from prd_pal.integrations.github.config_store import GitHubConfigStore
+from prd_pal.integrations.notion.config_routes import register_notion_connector_config_routes
+from prd_pal.integrations.notion.config_store import NotionConfigStore
 from prd_pal.service.materials_service import (
     MAX_UPLOAD_BYTES,
     create_source_version,
@@ -205,9 +211,33 @@ def create_project_space_router(
         decrypt_secret=secrets.decrypt,
     )
     feishu_config_store.initialize()
+    github_config_store = GitHubConfigStore(
+        db_path,
+        encrypt_secret=secrets.encrypt,
+        decrypt_secret=secrets.decrypt,
+    )
+    github_config_store.initialize()
+    notion_config_store = NotionConfigStore(
+        db_path,
+        encrypt_secret=secrets.encrypt,
+        decrypt_secret=secrets.decrypt,
+    )
+    notion_config_store.initialize()
     register_feishu_sync_handler(
         project_store=store,
         config_store=feishu_config_store,
+        new_id=new_id,
+        now=now,
+    )
+    register_github_sync_handler(
+        project_store=store,
+        config_store=github_config_store,
+        new_id=new_id,
+        now=now,
+    )
+    register_notion_sync_handler(
+        project_store=store,
+        config_store=notion_config_store,
         new_id=new_id,
         now=now,
     )
@@ -549,5 +579,19 @@ def create_project_space_router(
         now=now,
     )
 
-    return router, feishu_config_store, sync_store
+    register_github_connector_config_routes(
+        router,
+        config_store=github_config_store,
+        get_project=get_project,
+        now=now,
+    )
+
+    register_notion_connector_config_routes(
+        router,
+        config_store=notion_config_store,
+        get_project=get_project,
+        now=now,
+    )
+
+    return router, feishu_config_store, sync_store, github_config_store, notion_config_store
 

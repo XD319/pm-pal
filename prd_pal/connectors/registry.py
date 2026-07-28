@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from prd_pal.connectors.base import BaseConnector
 from prd_pal.connectors.feishu import FeishuConnector
+from prd_pal.connectors.github import GitHubConnector
 from prd_pal.connectors.local_file import LocalFileConnector
 from prd_pal.connectors.notion import NotionConnector
 from prd_pal.connectors.url import URLConnector
@@ -15,6 +16,7 @@ class ConnectorRegistry:
     def __init__(self, connectors: list[BaseConnector] | None = None) -> None:
         self._connectors = connectors or [
             FeishuConnector(),
+            GitHubConnector(),
             NotionConnector(),
             URLConnector(),
             LocalFileConnector(),

@@ -8,6 +8,7 @@ from .errors import (
     get_connector_error_payload,
 )
 from .feishu import FeishuConnector
+from .github import GitHubConnector
 from .local_file import LocalFileConnector
 from .notion import NotionConnector
 from .registry import ConnectorRegistry
@@ -22,6 +23,7 @@ __all__ = [
     "ConnectorErrorPayload",
     "ConnectorRegistry",
     "FeishuConnector",
+    "GitHubConnector",
     "LocalFileConnector",
     "NotionConnector",
     "SourceDocument",

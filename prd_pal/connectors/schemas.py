@@ -22,6 +22,7 @@ class SourceType(str, Enum):
     local_file = "local_file"
     url = "url"
     feishu = "feishu"
+    github = "github"
     notion = "notion"
 
 

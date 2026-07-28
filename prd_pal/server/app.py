@@ -21,6 +21,8 @@ from prd_pal.monitoring import (
     resolve_audit_client_metadata,
 )
 from prd_pal.integrations.feishu import create_feishu_router
+from prd_pal.integrations.github import create_github_router
+from prd_pal.integrations.notion import create_notion_router
 from prd_pal.run_review import make_run_id
 from prd_pal.server.job_registry import JobRegistry
 from prd_pal.server.job_state import (
@@ -1566,7 +1568,7 @@ async def _project_get_report(
     )
 
 
-_project_space_router, _feishu_config_store, _project_sync_store = create_project_space_router(
+_project_space_router, _feishu_config_store, _project_sync_store, _github_config_store, _notion_config_store = create_project_space_router(
     db_path=PROJECT_SPACE_DB_PATH,
     enqueue_review=_enqueue_review_run,
     get_run_status=_project_get_review_status,
@@ -1596,6 +1598,22 @@ app.include_router(
         update_workspace_roadmap=_update_feishu_workspace_roadmap,
         sync_store=_project_sync_store,
         config_store=_feishu_config_store,
+        new_id=new_id,
+        now=now,
+    )
+)
+app.include_router(
+    create_github_router(
+        sync_store=_project_sync_store,
+        config_store=_github_config_store,
+        new_id=new_id,
+        now=now,
+    )
+)
+app.include_router(
+    create_notion_router(
+        sync_store=_project_sync_store,
+        config_store=_notion_config_store,
         new_id=new_id,
         now=now,
     )
