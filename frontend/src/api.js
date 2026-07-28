@@ -236,6 +236,128 @@ export function fetchPmPipeline(pipelineId) {
   return requestJson(`/api/pm/pipeline/${encodeURIComponent(pipelineId)}`);
 }
 
+export function listDecisionSources(productId = '') {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  const query = params.toString();
+  return requestJson(`/api/decision/sources${query ? `?${query}` : ''}`);
+}
+
+export function listDecisionEvidence({ productId = '', query = '', limit = 100 } = {}) {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  if (query) params.set('query', query);
+  params.set('limit', String(limit));
+  return requestJson(`/api/decision/evidence?${params.toString()}`);
+}
+
+export function refreshDecisionSource(sourceId) {
+  return requestJson(`/api/decision/sources/${encodeURIComponent(sourceId)}/refresh`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+export function getDecisionSyncStatus(sourceId) {
+  return requestJson(`/api/decision/sources/${encodeURIComponent(sourceId)}/sync-status`);
+}
+
+export function listDecisionInsights(productId = '') {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  const query = params.toString();
+  return requestJson(`/api/decision/insights${query ? `?${query}` : ''}`);
+}
+
+export function listDecisionOpportunities(productId = '') {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  const query = params.toString();
+  return requestJson(`/api/decision/opportunities${query ? `?${query}` : ''}`);
+}
+
+export function submitDecisionOpportunity(opportunityId, payload) {
+  return requestJson(`/api/decision/opportunities/${encodeURIComponent(opportunityId)}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function approveDecisionOpportunity(opportunityId, payload) {
+  return requestJson(`/api/decision/opportunities/${encodeURIComponent(opportunityId)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function rejectDecisionOpportunity(opportunityId, payload) {
+  return requestJson(`/api/decision/opportunities/${encodeURIComponent(opportunityId)}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listDecisionPrdVersions(productId = '') {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  const query = params.toString();
+  return requestJson(`/api/decision/prd-versions${query ? `?${query}` : ''}`);
+}
+
+export function assessDecisionPrd(prdVersionId, payload = {}) {
+  return requestJson(`/api/decision/prd-versions/${encodeURIComponent(prdVersionId)}/assess`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function approveDecisionPrd(prdVersionId, payload) {
+  return requestJson(`/api/decision/prd-versions/${encodeURIComponent(prdVersionId)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function waiveDecisionPrd(prdVersionId, payload) {
+  return requestJson(`/api/decision/prd-versions/${encodeURIComponent(prdVersionId)}/waive`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function readyDecisionPrd(prdVersionId, payload) {
+  return requestJson(`/api/decision/prd-versions/${encodeURIComponent(prdVersionId)}/ready`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function exportDecisionPrd(prdVersionId, payload) {
+  return requestJson(`/api/decision/prd-versions/${encodeURIComponent(prdVersionId)}/export`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listDecisionDeliveries({ productId = '', prdVersionId = '' } = {}) {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  if (prdVersionId) params.set('prd_version_id', prdVersionId);
+  const query = params.toString();
+  return requestJson(`/api/decision/deliveries${query ? `?${query}` : ''}`);
+}
+
+export function fetchDecisionTrace(rootId) {
+  return requestJson(`/api/decision/trace/${encodeURIComponent(rootId)}`);
+}
+
+export function fetchPilotMetrics(productId = '') {
+  const params = new URLSearchParams();
+  if (productId) params.set('product_id', productId);
+  const query = params.toString();
+  return requestJson(`/api/decision/pilot/metrics${query ? `?${query}` : ''}`);
+}
+
 export async function downloadReportArtifact(runId, format) {
   const response = await fetchWithTimeout(appendFeishuContext(`/api/report/${encodeURIComponent(runId)}?format=${encodeURIComponent(format)}`), {
     timeoutMs: 20000,

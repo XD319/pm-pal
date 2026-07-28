@@ -689,6 +689,28 @@ def create_product_decision_router(
             )
         return {"job": record}
 
+    @router.post("/bot/command")
+    async def decision_bot_command(payload: dict[str, Any]) -> dict:
+        from .bot import handle_decision_bot_command
+
+        repository = await repo()
+        return await handle_decision_bot_command(
+            repository=repository,
+            command=str(payload.get("command") or ""),
+            product_id=str(payload.get("product_id") or ""),
+            open_id=str(payload.get("open_id") or ""),
+            text=str(payload.get("text") or ""),
+            source_url=str(payload.get("source_url") or ""),
+            h5_base_url=str(payload.get("h5_base_url") or ""),
+        )
+
+    @router.get("/pilot/metrics")
+    async def pilot_metrics(product_id: str = "") -> dict:
+        from .metrics import compute_pilot_metrics
+
+        metrics = await compute_pilot_metrics(await repo(), product_id=product_id)
+        return {"metrics": metrics}
+
     return router
 
 
