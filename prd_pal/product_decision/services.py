@@ -351,17 +351,13 @@ class OpportunityService:
         )
 
     async def create_formal_prd(self, opportunity_id: str) -> None:
-        """Gate: candidates cannot mint a formal PRD until owner approval (module 4)."""
+        """Compatibility gate used by older clients; prefer PrdLifecycleService."""
         current = await self._require(opportunity_id)
         if current.status != OpportunityCandidateStatus.approved:
             raise DecisionDomainError(
                 "opportunity_not_approved",
                 "Formal PRD requires an owner-approved opportunity; candidates cannot bypass approval.",
             )
-        raise DecisionDomainError(
-            "prd_lifecycle_not_enabled",
-            "Formal PRD versioning is enforced in the quality lifecycle module.",
-        )
 
     async def list_candidates(
         self, *, product_id: str = ""

@@ -16,8 +16,12 @@ from .models import (
     EvidenceSource,
     OpportunityCandidate,
     OpportunityCandidateStatus,
+    PrdVersion,
+    PrdVersionStatus,
+    ProductOwnerConfig,
     SourceSyncStatus,
 )
+from prd_pal.quality_engine.models import QualityAssessment, QualityGateDecision
 
 
 class ProductDecisionRepository(SQLiteRepositoryBase):
@@ -461,6 +465,224 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
 
         return await self._run("product_decision.append_audit", operation)
 
+    async def upsert_product_owner(
+        self, config: ProductOwnerConfig
+    ) -> RepositoryResult[ProductOwnerConfig]:
+        async def operation(connection: Any) -> ProductOwnerConfig:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_product_owner
+                (product_id, owner_open_id, admin_open_ids_json)
+                VALUES (?, ?, ?)
+                ON CONFLICT(product_id) DO UPDATE SET
+                owner_open_id=excluded.owner_open_id,
+                admin_open_ids_json=excluded.admin_open_ids_json""",
+                (
+                    config.product_id,
+                    config.owner_open_id,
+                    self._dump_json(config.admin_open_ids),
+                ),
+            )
+            await connection.commit()
+            return config
+
+        return await self._run("product_decision.upsert_product_owner", operation)
+
+    async def get_product_owner(
+        self, product_id: str
+    ) -> RepositoryResult[ProductOwnerConfig]:
+        async def operation(connection: Any) -> ProductOwnerConfig:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_product_owner WHERE product_id = ?",
+                    (product_id,),
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("product_owner", product_id)
+            return ProductOwnerConfig(
+                product_id=row["product_id"],
+                owner_open_id=row["owner_open_id"],
+                admin_open_ids=self._load_json_list(row["admin_open_ids_json"]),
+            )
+
+        return await self._run("product_decision.get_product_owner", operation)
+
+    async def insert_prd_version(
+        self, version: PrdVersion
+    ) -> RepositoryResult[PrdVersion]:
+        async def operation(connection: Any) -> PrdVersion:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_prd_version
+                (id, prd_id, product_id, opportunity_id, version, title, markdown, status,
+                 quality_assessment_id, quality_decision, evidence_refs_json, source_refs_json,
+                 source_urls_json, audit_id, created_at, updated_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    version.id,
+                    version.prd_id,
+                    version.product_id,
+                    version.opportunity_id,
+                    version.version,
+                    version.title,
+                    version.markdown,
+                    str(version.status),
+                    version.quality_assessment_id,
+                    version.quality_decision,
+                    self._dump_json(version.evidence_refs),
+                    self._dump_json(version.source_refs),
+                    self._dump_json(version.source_urls),
+                    version.audit_id,
+                    version.created_at,
+                    version.updated_at,
+                    self._dump_json(version.metadata),
+                ),
+            )
+            await connection.commit()
+            return version
+
+        return await self._run("product_decision.insert_prd_version", operation)
+
+    async def update_prd_version_gate(
+        self, version: PrdVersion
+    ) -> RepositoryResult[PrdVersion]:
+        """Update gate fields only; never rewrite markdown/title content."""
+
+        async def operation(connection: Any) -> PrdVersion:
+            await self._ensure_schema(connection)
+            cursor = await connection.execute(
+                """UPDATE decision_prd_version
+                   SET status = ?, quality_assessment_id = ?, quality_decision = ?,
+                       audit_id = ?, updated_at = ?, metadata_json = ?
+                   WHERE id = ?""",
+                (
+                    str(version.status),
+                    version.quality_assessment_id,
+                    version.quality_decision,
+                    version.audit_id,
+                    version.updated_at,
+                    self._dump_json(version.metadata),
+                    version.id,
+                ),
+            )
+            if cursor.rowcount == 0:
+                self._raise_not_found("prd_version", version.id)
+            await connection.commit()
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_prd_version WHERE id = ?", (version.id,)
+                )
+            ).fetchone()
+            return self._prd_from_row(row)
+
+        return await self._run("product_decision.update_prd_version_gate", operation)
+
+    async def get_prd_version(
+        self, prd_version_id: str
+    ) -> RepositoryResult[PrdVersion]:
+        async def operation(connection: Any) -> PrdVersion:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_prd_version WHERE id = ?", (prd_version_id,)
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("prd_version", prd_version_id)
+            return self._prd_from_row(row)
+
+        return await self._run("product_decision.get_prd_version", operation)
+
+    async def list_prd_versions(
+        self, *, prd_id: str = "", product_id: str = ""
+    ) -> RepositoryResult[list[PrdVersion]]:
+        async def operation(connection: Any) -> list[PrdVersion]:
+            await self._ensure_schema(connection)
+            clauses: list[str] = []
+            params: list[str] = []
+            if prd_id:
+                clauses.append("prd_id = ?")
+                params.append(prd_id)
+            if product_id:
+                clauses.append("product_id = ?")
+                params.append(product_id)
+            query = "SELECT * FROM decision_prd_version"
+            if clauses:
+                query += " WHERE " + " AND ".join(clauses)
+            query += " ORDER BY prd_id, version"
+            rows = await (await connection.execute(query, tuple(params))).fetchall()
+            return [self._prd_from_row(row) for row in rows]
+
+        return await self._run("product_decision.list_prd_versions", operation)
+
+    async def save_quality_assessment(
+        self, assessment: QualityAssessment
+    ) -> RepositoryResult[QualityAssessment]:
+        async def operation(connection: Any) -> QualityAssessment:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_quality_assessment
+                (id, prd_version_id, review_run_id, decision, quality_score, findings_json,
+                 risks_json, clarification_items_json, evidence_refs_json, policy,
+                 created_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                decision=excluded.decision, quality_score=excluded.quality_score,
+                findings_json=excluded.findings_json, risks_json=excluded.risks_json,
+                clarification_items_json=excluded.clarification_items_json,
+                metadata_json=excluded.metadata_json""",
+                (
+                    assessment.id,
+                    assessment.prd_version_id,
+                    assessment.review_run_id,
+                    str(assessment.decision),
+                    float(assessment.quality_score),
+                    self._dump_json(assessment.findings),
+                    self._dump_json(assessment.risks),
+                    self._dump_json(assessment.clarification_items),
+                    self._dump_json(assessment.evidence_refs),
+                    assessment.policy,
+                    assessment.created_at,
+                    self._dump_json(assessment.metadata),
+                ),
+            )
+            await connection.commit()
+            return assessment
+
+        return await self._run("product_decision.save_quality_assessment", operation)
+
+    async def get_quality_assessment(
+        self, assessment_id: str
+    ) -> RepositoryResult[QualityAssessment]:
+        async def operation(connection: Any) -> QualityAssessment:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_quality_assessment WHERE id = ?",
+                    (assessment_id,),
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("quality_assessment", assessment_id)
+            return QualityAssessment(
+                id=row["id"],
+                prd_version_id=row["prd_version_id"],
+                review_run_id=row["review_run_id"],
+                decision=QualityGateDecision(str(row["decision"])),
+                quality_score=float(row["quality_score"] or 0),
+                findings=self._load_json_list(row["findings_json"]),
+                risks=self._load_json_list(row["risks_json"]),
+                clarification_items=self._load_json_list(row["clarification_items_json"]),
+                evidence_refs=self._load_json_list(row["evidence_refs_json"]),
+                policy=row["policy"],
+                created_at=row["created_at"],
+                metadata=self._load_json_object(row["metadata_json"]),
+            )
+
+        return await self._run("product_decision.get_quality_assessment", operation)
+
     async def _source_exists(self, connection: Any, source_id: str) -> EvidenceSource:
         row = await (
             await connection.execute(
@@ -562,6 +784,47 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
             ON decision_insight(product_id, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_decision_opportunity_product
             ON decision_opportunity(product_id, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS decision_product_owner (
+            product_id TEXT PRIMARY KEY,
+            owner_open_id TEXT NOT NULL,
+            admin_open_ids_json TEXT NOT NULL DEFAULT '[]'
+        );
+        CREATE TABLE IF NOT EXISTS decision_prd_version (
+            id TEXT PRIMARY KEY,
+            prd_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            opportunity_id TEXT NOT NULL DEFAULT '',
+            version INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            markdown TEXT NOT NULL,
+            status TEXT NOT NULL,
+            quality_assessment_id TEXT NOT NULL DEFAULT '',
+            quality_decision TEXT NOT NULL DEFAULT '',
+            evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_urls_json TEXT NOT NULL DEFAULT '[]',
+            audit_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            UNIQUE(prd_id, version)
+        );
+        CREATE TABLE IF NOT EXISTS decision_quality_assessment (
+            id TEXT PRIMARY KEY,
+            prd_version_id TEXT NOT NULL,
+            review_run_id TEXT NOT NULL DEFAULT '',
+            decision TEXT NOT NULL,
+            quality_score REAL NOT NULL DEFAULT 0,
+            findings_json TEXT NOT NULL DEFAULT '[]',
+            risks_json TEXT NOT NULL DEFAULT '[]',
+            clarification_items_json TEXT NOT NULL DEFAULT '[]',
+            evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+            policy TEXT NOT NULL DEFAULT 'default',
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+        CREATE INDEX IF NOT EXISTS idx_decision_prd_product
+            ON decision_prd_version(product_id, updated_at DESC);
         """
         )
         await self._ensure_column(
@@ -664,6 +927,27 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
                 if isinstance(value, (int, float))
             },
             version=int(row["version"] or 1),
+            audit_id=row["audit_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            metadata=self._load_json_object(row["metadata_json"]),
+        )
+
+    def _prd_from_row(self, row: Any) -> PrdVersion:
+        return PrdVersion(
+            id=row["id"],
+            prd_id=row["prd_id"],
+            product_id=row["product_id"],
+            opportunity_id=row["opportunity_id"],
+            version=int(row["version"] or 1),
+            title=row["title"],
+            markdown=row["markdown"],
+            status=PrdVersionStatus(str(row["status"])),
+            quality_assessment_id=row["quality_assessment_id"],
+            quality_decision=row["quality_decision"],
+            evidence_refs=self._load_json_list(row["evidence_refs_json"]),
+            source_refs=self._load_json_list(row["source_refs_json"]),
+            source_urls=self._load_json_list(row["source_urls_json"]),
             audit_id=row["audit_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],

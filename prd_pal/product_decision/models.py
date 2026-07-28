@@ -124,3 +124,37 @@ class WriteReceipt(AgentSchemaModel):
     audit_id: str = Field(min_length=1)
     next_human_action: str = ""
     status: str = ""
+
+
+class PrdVersionStatus(StrEnum):
+    draft = "draft"
+    quality_checked = "quality_checked"
+    approved = "approved"
+    waived = "waived"
+    ready_for_delivery = "ready_for_delivery"
+
+
+class PrdVersion(AgentSchemaModel):
+    id: str = Field(min_length=1)
+    prd_id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    opportunity_id: str = ""
+    version: int = 1
+    title: str = Field(min_length=1)
+    markdown: str = Field(min_length=1)
+    status: PrdVersionStatus = PrdVersionStatus.draft
+    quality_assessment_id: str = ""
+    quality_decision: str = ""
+    evidence_refs: SafeStrList = Field(default_factory=list)
+    source_refs: SafeStrList = Field(default_factory=list)
+    source_urls: SafeStrList = Field(default_factory=list)
+    audit_id: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ProductOwnerConfig(AgentSchemaModel):
+    product_id: str = Field(min_length=1)
+    owner_open_id: str = Field(min_length=1)
+    admin_open_ids: SafeStrList = Field(default_factory=list)

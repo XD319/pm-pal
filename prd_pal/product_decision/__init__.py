@@ -8,10 +8,14 @@ from .models import (
     EvidenceSourceType,
     OpportunityCandidate,
     OpportunityCandidateStatus,
+    PrdVersion,
+    PrdVersionStatus,
+    ProductOwnerConfig,
     SourceSyncStatus,
     SyncTrigger,
     WriteReceipt,
 )
+from .prd_lifecycle import ApprovalService, PrdLifecycleService
 from .repository import ProductDecisionRepository
 from .scheduler import DailyEvidenceSyncScheduler, next_shanghai_0200
 from .services import (
@@ -24,6 +28,7 @@ from .services import (
 from .sync_service import EvidenceSyncService, shanghai_day_key, sync_idempotency_key
 
 __all__ = [
+    "ApprovalService",
     "CollectService",
     "DailyEvidenceSyncScheduler",
     "DecisionAuditEvent",
@@ -38,7 +43,11 @@ __all__ = [
     "OpportunityCandidate",
     "OpportunityCandidateStatus",
     "OpportunityService",
+    "PrdLifecycleService",
+    "PrdVersion",
+    "PrdVersionStatus",
     "ProductDecisionRepository",
+    "ProductOwnerConfig",
     "SourceSyncStatus",
     "SyncTrigger",
     "WriteReceipt",

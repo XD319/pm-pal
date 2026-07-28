@@ -13,6 +13,7 @@ from .feishu_client import FeishuEvidenceClient
 from .models import EvidenceRecord, EvidenceSource, EvidenceSourceType, SyncTrigger
 from .repository import ProductDecisionRepository
 from .scheduler import DailyEvidenceSyncScheduler
+from .prd_lifecycle import ApprovalService, PrdLifecycleService
 from .services import (
     CollectService,
     DecisionDomainError,
@@ -21,6 +22,7 @@ from .services import (
     OpportunityService,
 )
 from .sync_service import EvidenceSyncService
+from .models import ProductOwnerConfig
 
 
 class SourceCreateRequest(BaseModel):
@@ -96,6 +98,44 @@ class OpportunityEvaluateRequest(BaseModel):
     effort: float = 1.0
     ease: float = 1.0
     actor: str = ""
+
+
+class ProductOwnerRequest(BaseModel):
+    product_id: str = Field(min_length=1)
+    owner_open_id: str = Field(min_length=1)
+    admin_open_ids: list[str] = Field(default_factory=list)
+
+
+class ActorReasonRequest(BaseModel):
+    actor_open_id: str = Field(min_length=1)
+    reason: str = ""
+
+
+class WaiveRequest(BaseModel):
+    actor_open_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class PrdCreateRequest(BaseModel):
+    title: str = ""
+    markdown: str = ""
+    actor_open_id: str = ""
+
+
+class PrdReviseRequest(BaseModel):
+    title: str | None = None
+    markdown: str | None = None
+    actor_open_id: str = ""
+    reason: str = ""
+
+
+def _domain_http(exc: DecisionDomainError) -> HTTPException:
+    status = 404 if exc.code.endswith("_not_found") or exc.code.endswith("_missing") else 422
+    if exc.code in {"permission_denied", "opportunity_not_approved", "quality_not_passed"}:
+        status = 409 if exc.code != "permission_denied" else 403
+    if exc.code == "permission_denied":
+        status = 403
+    return HTTPException(status_code=status, detail={"code": exc.code, "message": exc.message})
 
 
 def create_product_decision_router(
@@ -378,16 +418,140 @@ def create_product_decision_router(
             **receipt.model_dump(mode="json"),
         }
 
-    @router.post("/opportunities/{opportunity_id}/prd")
-    async def create_prd_blocked(opportunity_id: str) -> dict:
-        service = OpportunityService(await repo())
+    @router.post("/opportunities/{opportunity_id}/approve")
+    async def approve_opportunity(
+        opportunity_id: str, payload: ActorReasonRequest
+    ) -> dict:
+        service = ApprovalService(await repo())
         try:
-            await service.create_formal_prd(opportunity_id)
+            opportunity, receipt = await service.approve_opportunity(
+                opportunity_id,
+                actor_open_id=payload.actor_open_id,
+                reason=payload.reason,
+            )
         except DecisionDomainError as exc:
-            raise HTTPException(
-                status_code=409, detail={"code": exc.code, "message": exc.message}
-            ) from exc
-        raise HTTPException(status_code=500, detail={"code": "unexpected_prd_path"})
+            raise _domain_http(exc) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/opportunities/{opportunity_id}/prd")
+    async def create_prd(opportunity_id: str, payload: PrdCreateRequest | None = None) -> dict:
+        body = payload or PrdCreateRequest()
+        service = PrdLifecycleService(await repo())
+        try:
+            version, receipt = await service.create_from_approved_opportunity(
+                opportunity_id,
+                title=body.title,
+                markdown=body.markdown,
+                actor_open_id=body.actor_open_id,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/owners")
+    async def upsert_owner(payload: ProductOwnerRequest) -> dict:
+        repository = await repo()
+        saved = await repository.upsert_product_owner(ProductOwnerConfig(**payload.model_dump()))
+        if not saved.ok or saved.value is None:
+            raise HTTPException(status_code=500, detail={"code": "owner_persist_failed"})
+        return {"owner": saved.value.model_dump(mode="json")}
+
+    @router.post("/prd-versions/{prd_version_id}/assess")
+    async def assess_prd(prd_version_id: str, payload: ActorReasonRequest | None = None) -> dict:
+        service = PrdLifecycleService(await repo())
+        try:
+            version, assessment, receipt = await service.assess_quality(
+                prd_version_id,
+                actor_open_id=(payload.actor_open_id if payload else ""),
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            "quality_assessment": assessment.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/prd-versions/{prd_version_id}/approve")
+    async def approve_prd(prd_version_id: str, payload: ActorReasonRequest) -> dict:
+        service = PrdLifecycleService(await repo())
+        try:
+            version, receipt = await service.approve(
+                prd_version_id,
+                actor_open_id=payload.actor_open_id,
+                reason=payload.reason,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/prd-versions/{prd_version_id}/waive")
+    async def waive_prd(prd_version_id: str, payload: WaiveRequest) -> dict:
+        service = PrdLifecycleService(await repo())
+        try:
+            version, receipt = await service.waive(
+                prd_version_id,
+                actor_open_id=payload.actor_open_id,
+                reason=payload.reason,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/prd-versions/{prd_version_id}/ready")
+    async def ready_prd(prd_version_id: str, payload: ActorReasonRequest) -> dict:
+        service = PrdLifecycleService(await repo())
+        try:
+            version, receipt = await service.mark_ready_for_delivery(
+                prd_version_id,
+                actor_open_id=payload.actor_open_id,
+                reason=payload.reason,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/prd-versions/{prd_version_id}/revise")
+    async def revise_prd(prd_version_id: str, payload: PrdReviseRequest) -> dict:
+        service = PrdLifecycleService(await repo())
+        try:
+            version, receipt = await service.revise(
+                prd_version_id,
+                title=payload.title,
+                markdown=payload.markdown,
+                actor_open_id=payload.actor_open_id,
+                reason=payload.reason,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "prd_version": version.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.get("/prd-versions")
+    async def list_prd_versions(prd_id: str = "", product_id: str = "") -> dict:
+        result = await (await repo()).list_prd_versions(prd_id=prd_id, product_id=product_id)
+        return {
+            "prd_versions": [
+                item.model_dump(mode="json") for item in (result.value or [])
+            ]
+        }
 
     return router
 
