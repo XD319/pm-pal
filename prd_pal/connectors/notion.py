@@ -139,8 +139,14 @@ class NotionConnector(BaseConnector):
     DEFAULT_API_VERSION = "2022-06-28"
     _NOTION_ID_PATTERN = re.compile(r"([0-9a-fA-F]{32})")
 
-    def __init__(self, *, http_client: _NotionHTTPClient | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        http_client: _NotionHTTPClient | None = None,
+        config: NotionConfig | None = None,
+    ) -> None:
         self._http_client = http_client
+        self._config_override = config
 
     def can_handle(self, source: str) -> bool:
         normalized = str(source or "").strip()
@@ -237,6 +243,8 @@ class NotionConnector(BaseConnector):
         )
 
     def _read_config(self) -> NotionConfig:
+        if self._config_override is not None:
+            return self._config_override
         raw_base_url = str(
             os.getenv(self.BASE_URL_ENV, self.DEFAULT_BASE_URL) or self.DEFAULT_BASE_URL
         ).strip()
