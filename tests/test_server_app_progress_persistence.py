@@ -5,6 +5,11 @@ import json
 from fastapi.testclient import TestClient
 
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 
 
 def _write_progress_snapshot(run_dir, run_id: str, *, status: str = "running") -> None:
@@ -53,7 +58,9 @@ def test_get_review_status_marks_orphaned_running_snapshot_as_failed(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id))
 
     assert response.status_code == 200
     payload = response.json()
@@ -62,27 +69,6 @@ def test_get_review_status_marks_orphaned_running_snapshot_as_failed(
     assert payload["progress"]["current_node"] == "delivery_planning"
     assert payload["progress"]["nodes"]["delivery_planning"]["status"] == "running"
     assert "no longer active" in payload["progress"]["error"]
-    app_module._jobs.clear()
-
-
-def test_list_runs_surfaces_failed_status_for_orphaned_running_snapshot(
-    tmp_path, monkeypatch
-):
-    run_id = "20260311T144149Z"
-    run_dir = tmp_path / run_id
-    run_dir.mkdir(parents=True)
-    _write_progress_snapshot(run_dir, run_id)
-
-    monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
-    app_module._jobs.clear()
-
-    client = TestClient(app_module.app)
-    response = client.get("/api/runs")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["runs"][0]["run_id"] == run_id
-    assert payload["runs"][0]["status"] == "failed"
     app_module._jobs.clear()
 
 
@@ -98,7 +84,9 @@ def test_get_review_result_uses_persisted_failure_when_run_was_interrupted(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}/result")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id, "/result"))
 
     assert response.status_code == 409
     detail = response.json()["detail"]
@@ -147,7 +135,9 @@ def test_get_review_status_counts_failed_stages_toward_progress_percent(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id))
 
     assert response.status_code == 200
     assert response.json()["progress"]["percent"] == 55

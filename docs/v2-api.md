@@ -13,12 +13,12 @@ The HTTP API is centered on review result generation.
 
 Core API flow:
 
-1. Submit a review
-2. Poll review status
-3. Fetch the generated report
-4. List recent runs for frontend history views
+1. Create or select a project
+2. Submit a project-scoped review (`POST /api/projects/{project_id}/reviews`)
+3. Poll review status
+4. Fetch the generated report
 
-The repository also exposes governance-support endpoints, but the main architecture remains review-first.
+Legacy global review endpoints (`POST /api/review`, `GET /api/runs`, `GET /api/compare`, `GET /api/trends`, `GET /api/stats`, `GET /api/report/{run_id}`, `GET /api/audit`) were removed in Phase 2. CLI and MCP continue to call the review service layer directly.
 
 ## Start The Server
 
@@ -55,12 +55,12 @@ Auth behavior:
 - Send `X-API-Key: <secret>` or `Authorization: Bearer <token>`.
 - If auth is enabled but no credentials are configured, the API returns a controlled `503` instead of exposing the surface anonymously.
 - Invalid or missing credentials return controlled `401` responses.
-- Run-level Feishu H5 requests may omit the API key only when they carry matching `open_id`, `tenant_key`, and `embed=feishu` context for that run.
-- Global management endpoints such as `GET /api/runs` still require API credentials when auth is enabled.
+- Run-level Feishu H5 requests may omit the API key only when they carry matching `open_id`, `tenant_key`, and `embed=feishu` context for that run on project-scoped review routes.
+- Project management endpoints such as `GET /api/projects` still require API credentials when auth is enabled.
 
 Rate-limit behavior:
 
-- The limiter applies to `POST /api/review`.
+- The limiter applies to `POST /api/projects/{project_id}/reviews`.
 - When the limit is exceeded, the API returns `429` with `detail.code = rate_limit_exceeded` and a `Retry-After` header.
 
 Controlled errors:
@@ -70,72 +70,56 @@ Controlled errors:
 
 ## Core Review Endpoints
 
-### `POST /api/review`
+Project-scoped review APIs live under `/api/projects/{project_id}/reviews`. The legacy `POST /api/review` route was removed; see [project-space.md](./project-space.md).
 
-Create one review run.
+### `POST /api/projects/{project_id}/reviews`
+
+Create one review run for a project source.
 
 Request body accepts:
 
-- `source`
-- `prd_text`
-- `prd_path`
+- `source_id`
 - `mode`
-- `smart_llm`
-- `fast_llm`
-- `strategic_llm`
-- `temperature`
-- `reasoning_effort`
-- `llm_kwargs`
-
-`source` is the preferred forward-looking input. It accepts local files, public text URLs, and authenticated Feishu/Lark sources. `prd_text` and `prd_path` remain supported for compatibility.
-
-Model override notes:
-
-- These LLM fields are optional and apply only to the submitted run.
-- Use the existing `<provider>:<model>` format, for example `openai:gpt-5-nano` or `deepseek:deepseek-chat`.
-- This makes it easy to keep the service default on OpenAI while temporarily testing Chinese output quality with DeepSeek.
+- `model_preset_id`
 
 Example with API key:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/review" \
+curl -X POST "http://127.0.0.1:8000/api/projects/project_abc/reviews" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: local-dev-secret" \
-  -d "{\"source\":\"docs/sample_prd.md\"}"
+  -d '{"source_id": "source_xyz", "mode": "quick"}'
 ```
 
-Example with bearer token:
+### `GET /api/projects/{project_id}/reviews/{run_id}`
 
-```bash
-curl -X POST "http://127.0.0.1:8000/api/review" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer shared-env-token" \
-  -d "{\"source\":\"docs/sample_prd.md\"}"
-```
+Poll run status.
 
-Example with a temporary DeepSeek override:
+### `GET /api/projects/{project_id}/reviews/{run_id}/result`
 
-```bash
-curl -X POST "http://127.0.0.1:8000/api/review" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: local-dev-secret" \
-  -d "{\"source\":\"docs/sample_prd.md\",\"smart_llm\":\"deepseek:deepseek-chat\"}"
-```
+Fetch structured review output when the run completes.
 
-Response:
+### `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv`
 
-```json
-{
-  "run_id": "20260309T000000Z"
-}
-```
+Download report artifacts for a completed run.
 
-Feishu source notes:
+---
 
-- Supported source forms include recognized `https://*.feishu.cn/...`, `https://*.larksuite.com/...`, and `feishu://...` document references.
-- Supported Feishu document types are `wiki`, `docx`, and legacy `docs` documents that can be converted to `docx`.
-- Set `MARRDP_FEISHU_APP_ID` and `MARRDP_FEISHU_APP_SECRET` before submitting authenticated Feishu sources.
-- Override `MARRDP_FEISHU_OPEN_BASE_URL` only when you need a non-default Open API base URL.
+## Legacy endpoints removed (Phase 2)
+
+The following routes are no longer exposed over HTTP:
+
+- `POST /api/review` and all `/api/review/{run_id}...` variants
+- `GET /api/runs`
+- `GET /api/compare`
+- `GET /api/trends`
+- `GET /api/stats`
+- `GET /api/report/{run_id}`
+- `GET /api/audit` (project-scoped audit may return in a later phase)
+
+Use CLI (`python -m prd_pal.main`) or MCP for direct service-layer access without these HTTP routes.
+
+---
 
 ## Feishu Entry Endpoints
 

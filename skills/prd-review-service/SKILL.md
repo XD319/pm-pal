@@ -34,13 +34,13 @@ Prefer request JSON content over server-side file paths.
 
 Submit:
 
-`POST <base-url>/api/review`
+`POST <base-url>/api/projects/<project_id>/reviews`
 
 Example body:
 
 ```json
 {
-  "prd_text": "<full prd markdown>"
+  "source_id": "<project-source-id>"
 }
 ```
 
@@ -50,7 +50,7 @@ Read the returned `run_id`.
 
 Poll:
 
-`GET <base-url>/api/review/<run_id>`
+`GET <base-url>/api/projects/<project_id>/reviews/<run_id>`
 
 Wait until the run is completed or failed.
 
@@ -58,11 +58,11 @@ Wait until the run is completed or failed.
 
 Prefer:
 
-`GET <base-url>/api/review/<run_id>/result`
+`GET <base-url>/api/projects/<project_id>/reviews/<run_id>/result`
 
 If needed, fetch:
 
-`GET <base-url>/api/report/<run_id>?format=json`
+`GET <base-url>/api/projects/<project_id>/reviews/<run_id>/report?format=json`
 
 Extract and summarize:
 

@@ -6,6 +6,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 from prd_pal.workspace import ArtifactRepository, ArtifactVersion, ArtifactVersionStatus
 
 
@@ -102,8 +107,10 @@ def test_submit_review_clarification_updates_findings_and_returns_refreshed_resu
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
     response = client.post(
-        f"/api/review/{run_id}/clarification",
+        project_review_path(project_id, run_id, "/clarification"),
         json={
             "answers": [
                 {
@@ -279,8 +286,10 @@ def test_submit_review_clarification_applies_patch_when_patch_context_is_present
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
     response = client.post(
-        f"/api/review/{run_id}/clarification",
+        project_review_path(project_id, run_id, "/clarification"),
         json={
             "answers": [
                 {

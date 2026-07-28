@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
-import time
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
-from prd_pal.integrations.feishu.security import build_feishu_signature
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    clear_project_run,
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 
 
 def _build_client() -> TestClient:
@@ -19,30 +23,40 @@ def _reset_state() -> None:
     app_module._reset_submission_rate_limits()
 
 
-def test_create_review_accepts_authorized_bearer_request(tmp_path, monkeypatch):
-    run_ids = iter(["20260310T020301Z"])
+def test_create_project_review_accepts_authorized_bearer_request(
+    tmp_path, monkeypatch
+):
+    run_id = "20260728T020301Z"
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_BEARER_TOKEN", "shared-bearer-token")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "true")
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
-    monkeypatch.setattr(app_module, "make_run_id", lambda: next(run_ids))
+    monkeypatch.setattr(app_module, "make_run_id", lambda: run_id)
     monkeypatch.setattr(app_module, "_run_job", AsyncMock(return_value=None))
+    clear_project_run(run_id)
     _reset_state()
 
     client = _build_client()
+    auth_headers = {"Authorization": "Bearer shared-bearer-token"}
+    project_id = create_test_project(client, headers=auth_headers)
+    source = client.post(
+        f"/api/projects/{project_id}/sources",
+        json={"title": "PRD", "content": "# Shared review", "is_prd": True},
+        headers=auth_headers,
+    ).json()
     response = client.post(
-        "/api/review",
-        json={"prd_text": "# Shared review"},
-        headers={"Authorization": "Bearer shared-bearer-token"},
+        f"/api/projects/{project_id}/reviews",
+        json={"source_id": source["id"]},
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
-    assert response.json() == {"run_id": "20260310T020301Z"}
-    assert "20260310T020301Z" in app_module._jobs
+    assert response.json()["run_id"] == run_id
+    assert run_id in app_module._jobs
     _reset_state()
 
 
-def test_create_review_rejects_unauthorized_request(tmp_path, monkeypatch):
+def test_create_project_review_rejects_unauthorized_request(tmp_path, monkeypatch):
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_KEY", "shared-api-key")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "true")
@@ -51,7 +65,17 @@ def test_create_review_rejects_unauthorized_request(tmp_path, monkeypatch):
     _reset_state()
 
     client = _build_client()
-    response = client.post("/api/review", json={"prd_text": "# Shared review"})
+    auth_headers = {"X-API-Key": "shared-api-key"}
+    project_id = create_test_project(client, headers=auth_headers)
+    source = client.post(
+        f"/api/projects/{project_id}/sources",
+        json={"title": "PRD", "content": "# Shared review", "is_prd": True},
+        headers=auth_headers,
+    ).json()
+    response = client.post(
+        f"/api/projects/{project_id}/reviews",
+        json={"source_id": source["id"]},
+    )
 
     assert response.status_code == 401
     assert response.json()["detail"] == {
@@ -62,10 +86,12 @@ def test_create_review_rejects_unauthorized_request(tmp_path, monkeypatch):
     _reset_state()
 
 
-def test_create_review_enforces_rate_limit_for_submission_endpoint(
+def test_create_project_review_enforces_rate_limit_for_submission_endpoint(
     tmp_path, monkeypatch
 ):
-    run_ids = iter(["20260310T020302Z"])
+    first_run_id = "20260728T020302Z"
+    second_run_id = "20260728T020303Z"
+    run_ids = iter([first_run_id, second_run_id])
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_KEY", "shared-api-key")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "false")
@@ -74,18 +100,28 @@ def test_create_review_enforces_rate_limit_for_submission_endpoint(
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     monkeypatch.setattr(app_module, "make_run_id", lambda: next(run_ids))
     monkeypatch.setattr(app_module, "_run_job", AsyncMock(return_value=None))
+    clear_project_run(first_run_id)
+    clear_project_run(second_run_id)
     _reset_state()
 
     client = _build_client()
+    auth_headers = {"X-API-Key": "shared-api-key"}
+    project_id = create_test_project(client, headers=auth_headers)
+    source = client.post(
+        f"/api/projects/{project_id}/sources",
+        json={"title": "PRD", "content": "# Shared review", "is_prd": True},
+        headers=auth_headers,
+    ).json()
+    payload = {"source_id": source["id"]}
     first = client.post(
-        "/api/review",
-        json={"prd_text": "# Shared review"},
-        headers={"X-API-Key": "shared-api-key"},
+        f"/api/projects/{project_id}/reviews",
+        json=payload,
+        headers=auth_headers,
     )
     second = client.post(
-        "/api/review",
-        json={"prd_text": "# Shared review"},
-        headers={"X-API-Key": "shared-api-key"},
+        f"/api/projects/{project_id}/reviews",
+        json=payload,
+        headers=auth_headers,
     )
 
     assert first.status_code == 200
@@ -150,6 +186,10 @@ def test_feishu_events_reject_invalid_signature(monkeypatch):
 
 
 def test_feishu_events_accepts_valid_signature(monkeypatch):
+    import time
+
+    from prd_pal.integrations.feishu.security import build_feishu_signature
+
     secret = "test-secret"
     timestamp = str(int(time.time()))
     body = json.dumps(

@@ -35,13 +35,13 @@ function getCurrentFeishuContext() {
 }
 
 function projectReviewApiPath(runId, suffix = '') {
-  if (typeof window !== 'undefined') {
-    const match = window.location.pathname.match(/^\/projects\/([^/]+)\/reviews\/[^/]+/);
-    if (match) {
-      return `/api/projects/${encodeURIComponent(match[1])}/reviews/${encodeURIComponent(runId)}${suffix}`;
-    }
+  const match = typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/projects\/([^/]+)\/reviews\/[^/]+/)
+    : null;
+  if (!match) {
+    throw new Error('Project review context is required for review API calls.');
   }
-  return `/api/review/${encodeURIComponent(runId)}${suffix}`;
+  return `/api/projects/${encodeURIComponent(match[1])}/reviews/${encodeURIComponent(runId)}${suffix}`;
 }
 
 function appendFeishuContext(path) {
@@ -131,20 +131,6 @@ function parseFilename(response, fallback) {
   return match?.[1] ?? fallback;
 }
 
-export function submitReview(payload) {
-  return requestJson('/api/review', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export function submitFeishuReview(payload) {
-  return requestJson('/api/feishu/submit', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
 export function fetchReviewStatus(runId) {
   return requestJson(reviewApiPath(runId));
 }
@@ -194,26 +180,6 @@ export function generateReviewRoadmap(runId) {
 
 export function buildReviewProgressStreamUrl(runId) {
   return reviewApiPath(runId, '/progress/stream');
-}
-
-export function fetchRuns() {
-  return requestJson('/api/runs');
-}
-
-export function fetchComparison(runA, runB) {
-  const params = new URLSearchParams({
-    run_a: runA,
-    run_b: runB,
-  });
-  return requestJson(`/api/compare?${params.toString()}`);
-}
-
-export function fetchTrendData(limit = 20) {
-  return requestJson(`/api/trends?limit=${encodeURIComponent(limit)}`);
-}
-
-export function fetchStatsSummary() {
-  return requestJson('/api/stats');
 }
 
 export function createPmFeedback(payload) {
@@ -376,9 +342,10 @@ export async function downloadReportArtifact(runId, format) {
   const projectMatch = typeof window !== 'undefined'
     ? window.location.pathname.match(/^\/projects\/([^/]+)\/reviews\/[^/]+/)
     : null;
-  const reportPath = projectMatch
-    ? `/api/projects/${encodeURIComponent(projectMatch[1])}/reviews/${encodeURIComponent(runId)}/report?format=${encodeURIComponent(format)}`
-    : `/api/report/${encodeURIComponent(runId)}?format=${encodeURIComponent(format)}`;
+  if (!projectMatch) {
+    throw new Error('Project review context is required to download report artifacts.');
+  }
+  const reportPath = `/api/projects/${encodeURIComponent(projectMatch[1])}/reviews/${encodeURIComponent(runId)}/report?format=${encodeURIComponent(format)}`;
   const response = await fetchWithTimeout(appendFeishuContext(reportPath), {
     timeoutMs: 20000,
     headers: {},

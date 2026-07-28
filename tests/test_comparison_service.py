@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import json
 
-from fastapi.testclient import TestClient
-
-from prd_pal.server import app as app_module
 from prd_pal.service.comparison_service import (
     compare_runs,
     get_run_stats_summary,
@@ -216,91 +213,3 @@ def test_trend_and_stats_handle_empty_and_single_run_boundaries(tmp_path):
     assert single_stats.average_review_duration_ms == 1500.0
     assert single_stats.top_issue_types[0].issue_type == "clarity"
     assert single_stats.top_issue_types[0].count == 2
-
-
-def test_compare_trends_and_stats_api_endpoints(tmp_path, monkeypatch):
-    _write_report(
-        tmp_path,
-        "20260309T010203Z",
-        {
-            "metrics": {"coverage_ratio": 0.75, "risk_score": 6.0},
-            "parallel_review_meta": {"duration_ms": 1200},
-            "parallel_review": {
-                "findings": [
-                    {
-                        "requirement_id": "REQ-001",
-                        "title": "Gap A",
-                        "severity": "high",
-                        "category": "clarity",
-                    }
-                ],
-                "risk_items": [
-                    {"id": "R-1", "title": "Risk A", "description": "Legacy risk"}
-                ],
-                "open_questions": [{"question": "Question A?"}],
-            },
-        },
-    )
-    _write_report(
-        tmp_path,
-        "20260310T010203Z",
-        {
-            "metrics": {"coverage_ratio": 0.85, "risk_score": 4.0},
-            "parallel_review_meta": {"duration_ms": 1800},
-            "parallel_review": {
-                "findings": [
-                    {
-                        "requirement_id": "REQ-001",
-                        "title": "Gap A updated",
-                        "severity": "high",
-                        "category": "clarity",
-                    },
-                    {
-                        "requirement_id": "REQ-002",
-                        "title": "Gap B",
-                        "severity": "medium",
-                        "category": "testability",
-                    },
-                ],
-                "risk_items": [
-                    {
-                        "id": "R-1",
-                        "title": "Risk A",
-                        "description": "Legacy risk updated",
-                    }
-                ],
-                "open_questions": [{"question": "Question B?"}],
-            },
-        },
-    )
-
-    monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
-    app_module._jobs.clear()
-    client = TestClient(app_module.app)
-
-    compare_response = client.get(
-        "/api/compare",
-        params={"run_a": "20260309T010203Z", "run_b": "20260310T010203Z"},
-    )
-    trends_response = client.get("/api/trends", params={"limit": 20})
-    stats_response = client.get("/api/stats")
-
-    assert compare_response.status_code == 200
-    compare_payload = compare_response.json()
-    assert compare_payload["run_a"] == "20260309T010203Z"
-    assert compare_payload["run_b"] == "20260310T010203Z"
-    assert any(
-        item["status"] == "added" and item["requirement_id"] == "REQ-002"
-        for item in compare_payload["findings"]
-    )
-
-    assert trends_response.status_code == 200
-    trends_payload = trends_response.json()
-    assert trends_payload["count"] == 2
-    assert isinstance(trends_payload["points"], list)
-
-    assert stats_response.status_code == 200
-    stats_payload = stats_response.json()
-    assert stats_payload["total_runs"] == 2
-    assert stats_payload["average_review_duration_ms"] == 1500.0
-    app_module._jobs.clear()

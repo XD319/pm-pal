@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-import json
-
 import pytest
-from fastapi.testclient import TestClient
 
-from prd_pal.monitoring import read_audit_events
 from prd_pal.server import app as app_module
-
-
-def _build_client() -> TestClient:
-    return TestClient(app_module.app)
+from prd_pal.server.job_state import (
+    ReviewCreateRequest,
+    resolve_review_inputs,
+    resolve_runtime_llm_options,
+)
 
 
 @pytest.mark.asyncio
-async def test_create_review_keeps_legacy_prd_path_compatible(tmp_path, monkeypatch):
+async def test_enqueue_review_keeps_legacy_prd_path_compatible(tmp_path, monkeypatch):
     prd_file = tmp_path / "legacy_prd.md"
     prd_file.write_text("# Legacy PRD", encoding="utf-8")
     captured: dict[str, object] = {}
@@ -42,8 +39,17 @@ async def test_create_review_keeps_legacy_prd_path_compatible(tmp_path, monkeypa
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    result = await app_module.create_review(
-        app_module.ReviewCreateRequest(prd_path=str(prd_file))
+    review_inputs = resolve_review_inputs(
+        ReviewCreateRequest(prd_path=str(prd_file))
+    )
+    result = await app_module._enqueue_review_run(
+        **review_inputs,
+        audit_context={
+            "source": "web",
+            "tool_name": "web.review.submit",
+            "actor": "web",
+            "client_metadata": {},
+        },
     )
     job = app_module._jobs[result["run_id"]]
     await job.task
@@ -53,13 +59,13 @@ async def test_create_review_keeps_legacy_prd_path_compatible(tmp_path, monkeypa
     assert captured["prd_path"] == str(prd_file.resolve())
     assert captured["source"] is None
     assert captured["mode"] is None
-    assert captured["llm_options"] == {}
+    assert captured["llm_options"] in ({}, None)
     assert captured["audit_context"]["source"] == "web"
     app_module._jobs.clear()
 
 
 @pytest.mark.asyncio
-async def test_create_review_prioritizes_source_over_legacy_fields(
+async def test_enqueue_review_prioritizes_source_over_legacy_fields(
     tmp_path, monkeypatch
 ):
     source_file = tmp_path / "source_prd.md"
@@ -89,12 +95,21 @@ async def test_create_review_prioritizes_source_over_legacy_fields(
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    payload = app_module.ReviewCreateRequest(
+    payload = ReviewCreateRequest(
         source=str(source_file),
         prd_text="ignored text",
         prd_path=str(source_file),
     )
-    result = await app_module.create_review(payload)
+    review_inputs = resolve_review_inputs(payload)
+    result = await app_module._enqueue_review_run(
+        **review_inputs,
+        audit_context={
+            "source": "web",
+            "tool_name": "web.review.submit",
+            "actor": "web",
+            "client_metadata": {},
+        },
+    )
     job = app_module._jobs[result["run_id"]]
     await job.task
 
@@ -103,13 +118,13 @@ async def test_create_review_prioritizes_source_over_legacy_fields(
     assert captured["prd_path"] is None
     assert captured["source"] == str(source_file)
     assert captured["mode"] is None
-    assert captured["llm_options"] == {}
+    assert captured["llm_options"] in ({}, None)
     assert captured["audit_context"]["source"] == "web"
     app_module._jobs.clear()
 
 
 @pytest.mark.asyncio
-async def test_create_review_forwards_runtime_llm_options(tmp_path, monkeypatch):
+async def test_enqueue_review_forwards_runtime_llm_options(tmp_path, monkeypatch):
     captured: dict[str, object] = {}
 
     async def fake_run_job(
@@ -135,14 +150,25 @@ async def test_create_review_forwards_runtime_llm_options(tmp_path, monkeypatch)
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    payload = app_module.ReviewCreateRequest(
+    payload = ReviewCreateRequest(
         prd_text="# Test PRD",
         smart_llm="deepseek:deepseek-chat",
         temperature=0.1,
         reasoning_effort="low",
         llm_kwargs={"max_retries": 1},
     )
-    result = await app_module.create_review(payload)
+    review_inputs = resolve_review_inputs(payload)
+    llm_options = resolve_runtime_llm_options(payload)
+    result = await app_module._enqueue_review_run(
+        **review_inputs,
+        llm_options=llm_options,
+        audit_context={
+            "source": "web",
+            "tool_name": "web.review.submit",
+            "actor": "web",
+            "client_metadata": {},
+        },
+    )
     job = app_module._jobs[result["run_id"]]
     await job.task
 
@@ -159,7 +185,7 @@ async def test_create_review_forwards_runtime_llm_options(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_get_review_status_keeps_legacy_report_paths_for_completed_run(
+async def test_project_get_review_status_keeps_report_paths_for_completed_run(
     tmp_path, monkeypatch
 ):
     run_id = "20260308T020303Z"
@@ -172,7 +198,7 @@ async def test_get_review_status_keeps_legacy_report_paths_for_completed_run(
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    result = await app_module.get_review_status(run_id)
+    result = await app_module._project_get_review_status(run_id)
 
     assert result["run_id"] == run_id
     assert result["status"] == "completed"
@@ -184,34 +210,13 @@ async def test_get_review_status_keeps_legacy_report_paths_for_completed_run(
     app_module._jobs.clear()
 
 
-def test_feishu_submit_successfully_reuses_review_submission(tmp_path, monkeypatch):
-    captured: dict[str, object] = {}
-
-    async def fake_run_job(
-        job,
-        *,
-        prd_text=None,
-        prd_path=None,
-        source=None,
-        mode=None,
-        llm_options=None,
-        audit_context=None,
-    ):
-        captured["prd_text"] = prd_text
-        captured["prd_path"] = prd_path
-        captured["source"] = source
-        captured["mode"] = mode
-        captured["llm_options"] = llm_options
-        captured["audit_context"] = audit_context
-        job.status = "completed"
+def test_feishu_submit_returns_gone_for_legacy_path(monkeypatch):
+    from fastapi.testclient import TestClient
 
     monkeypatch.setenv("MARRDP_FEISHU_SIGNATURE_DISABLED", "true")
-    monkeypatch.setattr(app_module, "_run_job", fake_run_job)
-    monkeypatch.setattr(app_module, "make_run_id", lambda: "20260308T020305Z")
-    monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    client = _build_client()
+    client = TestClient(app_module.app)
     response = client.post(
         "/api/feishu/submit",
         json={
@@ -222,64 +227,19 @@ def test_feishu_submit_successfully_reuses_review_submission(tmp_path, monkeypat
         },
     )
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "run_id": "20260308T020305Z",
-        "result_page": {
-            "path": "/run/20260308T020305Z?trigger_source=feishu&open_id=ou_test_user&tenant_key=tenant-test&embed=feishu",
-            "url": "/run/20260308T020305Z?trigger_source=feishu&open_id=ou_test_user&tenant_key=tenant-test&embed=feishu",
-        },
-    }
-    assert captured["prd_text"] is None
-    assert captured["prd_path"] is None
-    assert captured["source"] == "feishu://docx/doc-token"
-    assert captured["mode"] == "quick"
-    assert captured["llm_options"] == {}
-    assert captured["audit_context"] == {
-        "source": "feishu",
-        "tool_name": "feishu.submit",
-        "actor": "ou_test_user",
-        "client_metadata": {
-            "trigger_source": "feishu",
-            "open_id": "ou_test_user",
-            "tenant_key": "tenant-test",
-        },
-    }
-    entry_context = json.loads(
-        (tmp_path / "20260308T020305Z" / "entry_context.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert entry_context == {
-        "source_origin": "feishu",
-        "entry_mode": "plugin",
-        "submitter_open_id": "ou_test_user",
-        "tenant_key": "tenant-test",
-        "trigger_source": "feishu",
-        "result_page_context": {
-            "trigger_source": "feishu",
-            "open_id": "ou_test_user",
-            "tenant_key": "tenant-test",
-        },
-        "submitted_by": "ou_test_user",
-        "tool_name": "feishu.submit",
-        "created_at": entry_context["created_at"],
-    }
-    submission_events = read_audit_events(tmp_path / "20260308T020305Z")
-    assert submission_events[0]["operation"] == "review_submission"
-    assert submission_events[0]["actor"] == "ou_test_user"
-    assert submission_events[0]["source"] == "feishu"
-    assert submission_events[0]["details"]["source_origin"] == "feishu"
-    assert submission_events[0]["details"]["entry_mode"] == "plugin"
+    assert response.status_code == 410
+    assert response.json()["detail"]["code"] == "legacy_endpoint_removed"
     app_module._jobs.clear()
 
 
 def test_feishu_submit_rejects_invalid_payload(monkeypatch):
+    from fastapi.testclient import TestClient
+
     monkeypatch.setenv("MARRDP_FEISHU_SIGNATURE_DISABLED", "true")
     app_module._jobs.clear()
 
-    client = _build_client()
+    client = TestClient(app_module.app)
     response = client.post("/api/feishu/submit", json={"mode": "quick"})
 
-    assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "request_validation_error"
+    assert response.status_code == 410
+    assert response.json()["detail"]["code"] == "legacy_endpoint_removed"

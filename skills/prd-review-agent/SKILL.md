@@ -81,7 +81,7 @@ Preferred answer-submission path:
 
 Fallback when working through the local HTTP API:
 
-`POST /api/review/<run_id>/clarification`
+`POST /api/projects/<project_id>/reviews/<run_id>/clarification`
 
 - If neither MCP nor the local HTTP API is available for answer submission, ask the user to apply the clarification into the PRD itself and run a new review instead of pretending the clarification was persisted.
 - Do not continue to `prepare-handoff` while clarification is still pending.

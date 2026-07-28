@@ -16,7 +16,7 @@ def test_local_prd_review_skill_hardens_storage_and_source_usage() -> None:
     assert "Do not paste the full PRD or the full report JSON" in skill
     assert "clarification.triggered" in skill
     assert "answer_review_clarification" in skill
-    assert "POST /api/review/<run_id>/clarification" in skill
+    assert "POST /api/projects/<project_id>/reviews/<run_id>/clarification" in skill
     assert (
         "Do not continue to `prepare-handoff` while clarification is still pending."
         in skill
@@ -33,8 +33,8 @@ def test_remote_prd_review_service_skill_targets_http_flow() -> None:
 
     assert "[TODO" not in skill
     assert "GET <base-url>/health" in skill
-    assert "POST <base-url>/api/review" in skill
-    assert "GET <base-url>/api/review/<run_id>/result" in skill
+    assert "POST <base-url>/api/projects/<project_id>/reviews" in skill
+    assert "GET <base-url>/api/projects/<project_id>/reviews/<run_id>/result" in skill
     assert "Never reveal API keys" in skill
     assert "Treat `prd_text` as the default contract for strong callers" in skill
     assert "integration boundary for weak callers" in skill

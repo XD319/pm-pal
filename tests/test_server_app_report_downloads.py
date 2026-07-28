@@ -7,6 +7,11 @@ import json
 from fastapi.testclient import TestClient
 
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 
 
 def test_get_report_html_returns_browser_openable_document(tmp_path, monkeypatch):
@@ -33,7 +38,11 @@ def test_get_report_html_returns_browser_openable_document(tmp_path, monkeypatch
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/report/{run_id}?format=html")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(
+        project_review_path(project_id, run_id, "/report?format=html")
+    )
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
@@ -77,7 +86,11 @@ def test_get_report_csv_returns_excel_friendly_findings_table(tmp_path, monkeypa
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/report/{run_id}?format=csv")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(
+        project_review_path(project_id, run_id, "/report?format=csv")
+    )
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")

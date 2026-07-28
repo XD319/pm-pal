@@ -10,13 +10,11 @@ from .models import (
     FeishuChallengeEvent,
     FeishuClarificationRequest,
     FeishuEventEnvelope,
-    FeishuSubmitRequest,
     FeishuWorkspaceClarificationRequest,
     FeishuWorkspaceDeriveRequest,
     FeishuWorkspaceRoadmapUpdateRequest,
 )
 from .security import FeishuSignatureVerificationError, verify_feishu_signature
-
 
 SubmitReviewRun = Callable[..., Awaitable[dict[str, str]]]
 SubmitClarification = Callable[..., Awaitable[dict[str, Any]]]
@@ -28,6 +26,19 @@ SubmitWorkspaceClarification = Callable[..., Awaitable[dict[str, Any]]]
 DeriveWorkspaceVersion = Callable[..., Awaitable[dict[str, Any]]]
 GetWorkspaceDiff = Callable[..., Awaitable[dict[str, Any]]]
 UpdateWorkspaceRoadmap = Callable[..., Awaitable[dict[str, Any]]]
+
+_LEGACY_REVIEW_GONE = JSONResponse(
+    status_code=410,
+    content={
+        "detail": {
+            "code": "legacy_endpoint_removed",
+            "message": (
+                "Legacy Feishu review submission was removed. "
+                "Use POST /api/projects/{project_id}/reviews instead."
+            ),
+        }
+    },
+)
 
 
 def _invalid_signature_response(exc: FeishuSignatureVerificationError) -> JSONResponse:
@@ -50,6 +61,7 @@ def create_feishu_router(
     get_workspace_diff: GetWorkspaceDiff,
     update_workspace_roadmap: UpdateWorkspaceRoadmap,
 ) -> APIRouter:
+    _ = submit_review_run, start_workspace_review  # retained for app wiring :-)
     router = APIRouter(prefix="/api/feishu", tags=["feishu"])
 
     @router.post("/events")
@@ -71,20 +83,13 @@ def create_feishu_router(
         return JSONResponse(status_code=200, content={"code": 0, "message": "ok"})
 
     @router.post("/submit", response_model=None)
-    async def submit_feishu_review(
-        payload: FeishuSubmitRequest, request: Request
-    ) -> Any:
+    async def submit_feishu_review(request: Request) -> JSONResponse:
         body = await request.body()
         try:
             verify_feishu_signature(headers=request.headers, body=body)
         except FeishuSignatureVerificationError as exc:
             return _invalid_signature_response(exc)
-
-        review_payload = payload.to_review_payload()
-        return await submit_review_run(
-            **review_payload,
-            audit_context=payload.build_audit_context(),
-        )
+        return _LEGACY_REVIEW_GONE
 
     @router.get("/workspaces", response_model=None)
     async def list_feishu_workspaces(
@@ -117,18 +122,14 @@ def create_feishu_router(
         artifact_key: str,
         version_id: str,
         request: Request,
-    ) -> Any:
+    ) -> JSONResponse:
         body = await request.body()
         try:
             verify_feishu_signature(headers=request.headers, body=body)
         except FeishuSignatureVerificationError as exc:
             return _invalid_signature_response(exc)
-        return await start_workspace_review(
-            workspace_id=workspace_id,
-            artifact_key=artifact_key,
-            version_id=version_id,
-            request=request,
-        )
+        _ = workspace_id, artifact_key, version_id
+        return _LEGACY_REVIEW_GONE
 
     @router.post("/workspaces/{workspace_id}/clarification", response_model=None)
     async def submit_feishu_workspace_clarification(

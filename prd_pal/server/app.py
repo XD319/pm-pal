@@ -7,7 +7,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlencode
 
 from dotenv import load_dotenv
@@ -18,7 +18,6 @@ from fastapi.staticfiles import StaticFiles
 
 from prd_pal.monitoring import (
     append_audit_event,
-    query_audit_events,
     resolve_audit_client_metadata,
 )
 from prd_pal.integrations.feishu import create_feishu_router
@@ -31,16 +30,11 @@ from prd_pal.server.job_state import (
     RevisionConfirmRequest,
     RevisionInputRequest,
     RevisionStageRequest,
-    ReviewCreateRequest,
-    build_run_list_entry,
     job_status_payload as _job_status_payload,
     persisted_status_payload as _persisted_status_payload,
     persist_job_snapshot as _persist_job_snapshot,
-    resolve_review_inputs as _resolve_review_inputs,
-    resolve_runtime_llm_options as _resolve_runtime_llm_options,
     result_unavailable_detail as _result_unavailable_detail,
     run_job as _run_job_impl,
-    run_sort_timestamp,
     terminal_payload_for_job as _terminal_payload_for_job,
     terminal_payload_for_run_dir as _terminal_payload_for_run_dir,
 )
@@ -77,11 +71,6 @@ from prd_pal.server.project_space import create_project_space_router
 from prd_pal.product_decision.router import (
     build_default_sync_stack,
     create_product_decision_router,
-)
-from prd_pal.service.comparison_service import (
-    compare_runs,
-    get_run_stats_summary,
-    get_trend_data,
 )
 from prd_pal.service.roadmap_service import (
     diff_roadmap_versions,
@@ -376,8 +365,13 @@ def _enforce_run_access(request: Request | None, run_id: str) -> None:
 
 def _run_id_from_run_level_api_path(path: str) -> str:
     parts = [part for part in str(path or "").strip().split("/") if part]
-    if len(parts) >= 3 and parts[0] == "api" and parts[1] in {"review", "report"}:
-        candidate = parts[2]
+    if (
+        len(parts) >= 5
+        and parts[0] == "api"
+        and parts[1] == "projects"
+        and parts[3] == "reviews"
+    ):
+        candidate = parts[4]
         if RUN_ID_PATTERN.fullmatch(candidate):
             return candidate
     return ""
@@ -1148,83 +1142,6 @@ def list_templates_by_type_endpoint(
     }
 
 
-@app.get("/api/audit")
-def list_audit_events_endpoint(
-    run_id: str | None = Query(default=None),
-    bundle_id: str | None = Query(default=None),
-    task_id: str | None = Query(default=None),
-    event_type: str | None = Query(default=None),
-    status: str | None = Query(default=None),
-) -> dict[str, Any]:
-    events = query_audit_events(
-        OUTPUTS_ROOT,
-        run_id=run_id,
-        bundle_id=bundle_id,
-        task_id=task_id,
-        event_type=event_type,
-        status=status,
-    )
-    return {
-        "count": len(events),
-        "events": events,
-        "filters": {
-            "run_id": run_id,
-            "bundle_id": bundle_id,
-            "task_id": task_id,
-            "event_type": event_type,
-            "status": status,
-        },
-    }
-
-
-@app.get("/api/runs")
-async def list_runs() -> dict[str, Any]:
-    jobs = await _job_registry.snapshot()
-
-    if not OUTPUTS_ROOT.exists() or not OUTPUTS_ROOT.is_dir():
-        return {"count": 0, "runs": []}
-
-    runs: list[tuple[float, str, dict[str, Any]]] = []
-    for run_dir in OUTPUTS_ROOT.iterdir():
-        if not run_dir.is_dir() or not RUN_ID_PATTERN.fullmatch(run_dir.name):
-            continue
-        job = jobs.get(run_dir.name)
-        runs.append(
-            (
-                run_sort_timestamp(run_dir, job),
-                run_dir.name,
-                build_run_list_entry(
-                    run_dir, persisted_status_payload=_persisted_status_payload, job=job
-                ),
-            )
-        )
-
-    runs.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    return {"count": len(runs), "runs": [item[2] for item in runs]}
-
-
-@app.post("/api/review")
-async def create_review(payload: ReviewCreateRequest) -> dict[str, str]:
-    review_inputs = _resolve_review_inputs(payload)
-    llm_options = _resolve_runtime_llm_options(payload)
-    return await _enqueue_review_run(
-        **review_inputs,
-        llm_options=llm_options,
-        audit_context={
-            "source": "web",
-            "tool_name": "web.review.submit",
-            "actor": "web",
-            "client_metadata": {},
-        },
-    )
-
-
-@app.get("/api/review/{run_id}")
-async def get_review_status(run_id: str, request: Request = None) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_get_review_status(run_id)
-
-
 async def _project_get_review_status(run_id: str) -> dict[str, Any]:
     request_context = _resolve_run_feishu_context(run_id, {})
     run_dir = OUTPUTS_ROOT / run_id
@@ -1251,12 +1168,6 @@ async def _project_get_review_status(run_id: str) -> dict[str, Any]:
         run_dir=run_dir,
     )
     return payload
-
-
-@app.get("/api/review/{run_id}/progress/stream")
-async def stream_review_progress(run_id: str, request: Request) -> StreamingResponse:
-    _enforce_run_access(request, run_id)
-    return await _project_stream_review_progress(run_id)
 
 
 async def _project_stream_review_progress(run_id: str) -> StreamingResponse:
@@ -1292,14 +1203,6 @@ async def _project_stream_review_progress(run_id: str) -> StreamingResponse:
             "X-Accel-Buffering": "no",
         },
     )
-
-
-@app.post("/api/review/{run_id}/clarification")
-async def submit_review_clarification(
-    run_id: str, payload: ClarificationAnswerRequest, request: Request
-) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_submit_clarification(run_id, payload)
 
 
 async def _project_submit_clarification(
@@ -1351,14 +1254,6 @@ async def _project_submit_clarification(
         ) from exc
 
 
-@app.post("/api/review/{run_id}/revision-stage")
-async def update_review_revision_stage(
-    run_id: str, payload: RevisionStageRequest, request: Request
-) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_update_revision_stage(run_id, payload)
-
-
 async def _project_update_revision_stage(
     run_id: str, payload: RevisionStageRequest
 ) -> dict[str, Any]:
@@ -1398,14 +1293,6 @@ async def _project_update_revision_stage(
                 "run_id": run_id,
             },
         ) from exc
-
-
-@app.post("/api/review/{run_id}/revision-input")
-async def submit_review_revision_input(
-    run_id: str, payload: RevisionInputRequest, request: Request
-) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_submit_revision_input(run_id, payload)
 
 
 async def _project_submit_revision_input(
@@ -1449,12 +1336,6 @@ async def _project_submit_revision_input(
         ) from exc
 
 
-@app.post("/api/review/{run_id}/revision-generate")
-async def generate_review_revision(run_id: str, request: Request) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_generate_revision(run_id)
-
-
 async def _project_generate_revision(run_id: str) -> dict[str, Any]:
     request_context = _resolve_run_feishu_context(run_id, {})
     try:
@@ -1488,14 +1369,6 @@ async def _project_generate_revision(run_id: str) -> dict[str, Any]:
                 "run_id": run_id,
             },
         ) from exc
-
-
-@app.post("/api/review/{run_id}/revision-confirm")
-async def confirm_review_revision(
-    run_id: str, payload: RevisionConfirmRequest, request: Request
-) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_confirm_revision(run_id, payload)
 
 
 async def _project_confirm_revision(
@@ -1556,12 +1429,6 @@ async def _project_confirm_revision(
         ) from exc
 
 
-@app.post("/api/review/{run_id}/roadmap-generate")
-async def generate_review_roadmap(run_id: str, request: Request) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_generate_roadmap(run_id)
-
-
 async def _project_generate_roadmap(run_id: str) -> dict[str, Any]:
     try:
         generate_roadmap_for_run(run_id=run_id, outputs_root=OUTPUTS_ROOT)
@@ -1580,12 +1447,6 @@ async def _project_generate_roadmap(run_id: str) -> dict[str, Any]:
                 "run_id": run_id,
             },
         ) from exc
-
-
-@app.get("/api/review/{run_id}/result")
-async def get_review_result(run_id: str, request: Request = None) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_get_review_result(run_id)
 
 
 async def _project_get_review_result(run_id: str) -> dict[str, Any]:
@@ -1614,14 +1475,6 @@ async def _project_get_review_result(run_id: str) -> dict[str, Any]:
             status_code=500,
             detail={"code": "invalid_report_content", "message": str(exc)},
         ) from exc
-
-
-@app.get("/api/review/{run_id}/artifacts/{artifact_key}")
-async def get_review_artifact_preview(
-    run_id: str, artifact_key: str, request: Request
-) -> dict[str, Any]:
-    _enforce_run_access(request, run_id)
-    return await _project_get_artifact_preview(run_id, artifact_key)
 
 
 async def _project_get_artifact_preview(run_id: str, artifact_key: str) -> dict[str, Any]:
@@ -1660,49 +1513,6 @@ async def _project_get_artifact_preview(run_id: str, artifact_key: str) -> dict[
                 "run_id": run_id,
             },
         ) from exc
-
-
-@app.get("/api/compare")
-async def compare_review_runs(
-    run_a: str = Query(...), run_b: str = Query(...)
-) -> dict[str, Any]:
-    try:
-        return compare_runs(
-            run_id_a=run_a, run_id_b=run_b, outputs_root=OUTPUTS_ROOT
-        ).model_dump(mode="json")
-    except FileNotFoundError as exc:
-        raise HTTPException(
-            status_code=404, detail={"code": "run_not_found", "message": str(exc)}
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"code": "invalid_compare_request", "message": str(exc)},
-        ) from exc
-
-
-@app.get("/api/trends")
-async def get_review_trends(
-    limit: int = Query(default=20, ge=1, le=200),
-) -> dict[str, Any]:
-    return get_trend_data(outputs_root=OUTPUTS_ROOT, limit=limit).model_dump(
-        mode="json"
-    )
-
-
-@app.get("/api/stats")
-async def get_review_stats() -> dict[str, Any]:
-    return get_run_stats_summary(outputs_root=OUTPUTS_ROOT).model_dump(mode="json")
-
-
-@app.get("/api/report/{run_id}")
-async def get_report(
-    run_id: str,
-    request: Request,
-    format: Literal["md", "json", "html", "csv"] = Query(default="md"),
-) -> Response:
-    _enforce_run_access(request, run_id)
-    return await _project_get_report(run_id, format)
 
 
 async def _project_get_report(

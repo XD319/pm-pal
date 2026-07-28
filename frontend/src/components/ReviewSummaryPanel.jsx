@@ -126,7 +126,7 @@ function ReviewSummaryPanel({ runId, status, result, statusPayload, resultPayloa
           <div className="empty-grid" />
           <h3>Review summary will land here</h3>
           <p>
-            The workspace will pull structured output from <code>GET /api/review/{'{run_id}'}/result</code> as soon as the run completes.
+            The workspace will pull structured output from <code>GET /api/projects/{'{project_id}'}/reviews/{'{run_id}'}/result</code> as soon as the run completes.
           </p>
           {resultError && <div className="feedback-banner feedback-error" aria-live="polite">{resultError}</div>}
         </div>

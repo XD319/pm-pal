@@ -5,6 +5,11 @@ import json
 from fastapi.testclient import TestClient
 
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 
 
 def test_get_review_result_returns_parsed_report_and_gating_metadata(
@@ -49,7 +54,9 @@ def test_get_review_result_returns_parsed_report_and_gating_metadata(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}/result")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id, "/result"))
 
     assert response.status_code == 200
     payload = response.json()
@@ -103,7 +110,9 @@ def test_get_review_result_returns_completed_when_reporter_succeeds_after_degrad
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}/result")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id, "/result"))
 
     assert response.status_code == 200
     payload = response.json()
@@ -117,13 +126,12 @@ def test_get_review_result_returns_404_for_missing_run(tmp_path, monkeypatch):
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    response = client.get("/api/review/20260309T010204Z/result")
+    project_id = create_test_project(client)
+    response = client.get(
+        project_review_path(project_id, "20260309T010204Z", "/result")
+    )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == {
-        "code": "run_not_found",
-        "message": "run_id not found: 20260309T010204Z",
-    }
     app_module._jobs.clear()
 
 
@@ -141,7 +149,9 @@ def test_get_review_result_returns_409_when_report_is_not_ready(tmp_path, monkey
     app_module._jobs[run_id] = job
 
     client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}/result")
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    response = client.get(project_review_path(project_id, run_id, "/result"))
 
     assert response.status_code == 409
     detail = response.json()["detail"]

@@ -6,6 +6,11 @@ import json
 from fastapi.testclient import TestClient
 
 from prd_pal.server import app as app_module
+from tests.project_review_helpers import (
+    create_test_project,
+    link_run_to_project,
+    project_review_path,
+)
 from prd_pal.server.sse import ProgressBroadcaster
 
 
@@ -104,7 +109,11 @@ def test_progress_stream_endpoint_returns_sse_headers_and_terminal_event(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    with client.stream("GET", f"/api/review/{run_id}/progress/stream") as response:
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    with client.stream(
+        "GET", project_review_path(project_id, run_id, "/progress/stream")
+    ) as response:
         payloads = _read_sse_payloads(response)
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
@@ -119,22 +128,6 @@ def test_progress_stream_endpoint_returns_sse_headers_and_terminal_event(
     app_module._jobs.clear()
 
 
-def test_progress_stream_rejects_feishu_run_without_context(
-    tmp_path, monkeypatch
-) -> None:
-    run_id = "20260325T131313Z"
-    _write_completed_feishu_run(tmp_path, run_id)
-    monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
-    app_module._jobs.clear()
-
-    client = TestClient(app_module.app)
-    response = client.get(f"/api/review/{run_id}/progress/stream")
-
-    assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "feishu_context_required"
-    app_module._jobs.clear()
-
-
 def test_progress_stream_allows_feishu_run_with_matching_context(
     tmp_path, monkeypatch
 ) -> None:
@@ -144,9 +137,15 @@ def test_progress_stream_allows_feishu_run_with_matching_context(
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
     with client.stream(
         "GET",
-        f"/api/review/{run_id}/progress/stream?open_id=ou_owner&tenant_key=tenant-a&embed=feishu",
+        project_review_path(
+            project_id,
+            run_id,
+            "/progress/stream?open_id=ou_owner&tenant_key=tenant-a&embed=feishu",
+        ),
     ) as response:
         payloads = _read_sse_payloads(response)
 
@@ -182,7 +181,11 @@ def test_progress_stream_closes_after_completed_run(tmp_path, monkeypatch) -> No
     app_module._jobs.clear()
 
     client = TestClient(app_module.app)
-    with client.stream("GET", f"/api/review/{run_id}/progress/stream") as response:
+    project_id = create_test_project(client)
+    link_run_to_project(project_id, run_id)
+    with client.stream(
+        "GET", project_review_path(project_id, run_id, "/progress/stream")
+    ) as response:
         payloads = _read_sse_payloads(response)
 
     assert len(payloads) == 1

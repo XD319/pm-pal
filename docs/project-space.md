@@ -1,6 +1,17 @@
 # Project Space (self-hosted)
 
-PRD Pal now starts in a project space. Create a project, add PRD text or a Feishu/document link, then start review from the selected source. Each run remains available through its existing URL and is listed under the project.
+PRD Pal now starts in a project space. Create a project, add PRD text or a Feishu/document link, then start review from the selected source. Each run is listed under the project and accessed through project-scoped review APIs.
+
+## Review APIs
+
+Legacy global routes such as `POST /api/review`, `GET /api/runs`, and `GET /api/report/{run_id}` were removed in Phase 2. Use project-scoped endpoints instead:
+
+- `POST /api/projects/{project_id}/reviews` — start a review from a project source
+- `GET /api/projects/{project_id}/reviews/{run_id}` — poll status
+- `GET /api/projects/{project_id}/reviews/{run_id}/result` — fetch structured results
+- `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv` — download reports
+
+The `/run/{run_id}` frontend path still works via redirect to the linked project review page.
 
 ## Configure your model provider
 

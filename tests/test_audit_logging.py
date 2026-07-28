@@ -3,10 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 from prd_pal.mcp_server import server as mcp_server
-from prd_pal.server import app as app_module
 from prd_pal.monitoring import read_audit_events
 from prd_pal.service import review_service
 
@@ -213,9 +211,11 @@ def test_block_by_risk_writes_notification_dispatch_audit_events(
     )
 
 
-def test_query_audit_events_endpoint_filters_by_run_and_event_type(
+def test_query_audit_events_filters_by_run_and_event_type(
     tmp_path: Path, write_delivery_workspace
 ) -> None:
+    from prd_pal.monitoring import query_audit_events
+
     bundle_id, run_dir = write_delivery_workspace(
         tmp_path,
         run_id="20260308T040510Z",
@@ -235,26 +235,13 @@ def test_query_audit_events_endpoint_filters_by_run_and_event_type(
         options=options,
     )
 
-    original_root = app_module.OUTPUTS_ROOT
-    app_module.OUTPUTS_ROOT = tmp_path
-    try:
-        client = TestClient(app_module.app)
-        response = client.get(
-            "/api/audit",
-            params={
-                "run_id": "20260308T040510Z",
-                "event_type": "blocked_by_risk",
-                "status": "dispatched",
-            },
-        )
-    finally:
-        app_module.OUTPUTS_ROOT = original_root
+    events = query_audit_events(
+        tmp_path,
+        run_id="20260308T040510Z",
+        event_type="blocked_by_risk",
+        status="dispatched",
+    )
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["count"] == 2
-    assert payload["filters"]["run_id"] == "20260308T040510Z"
-    assert {event["details"]["event_type"] for event in payload["events"]} == {
-        "blocked_by_risk"
-    }
-    assert {event["status"] for event in payload["events"]} == {"dispatched"}
+    assert len(events) == 2
+    assert {event["details"]["event_type"] for event in events} == {"blocked_by_risk"}
+    assert {event["status"] for event in events} == {"dispatched"}

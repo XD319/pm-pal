@@ -50,7 +50,7 @@ def test_request_logging_middleware_adds_trace_id_and_logs_request(
 
     with caplog.at_level(logging.INFO, logger="prd_pal.server.http"):
         client = TestClient(app_module.app)
-        response = client.get("/api/runs")
+        response = client.get("/api/templates")
 
     assert response.status_code == 200
     assert response.headers["X-Trace-ID"]
@@ -59,5 +59,5 @@ def test_request_logging_middleware_adds_trace_id_and_logs_request(
     ]
     assert request_logs
     assert request_logs[-1].trace_id == response.headers["X-Trace-ID"]
-    assert request_logs[-1].path == "/api/runs"
+    assert request_logs[-1].path == "/api/templates"
     assert request_logs[-1].status_code == 200

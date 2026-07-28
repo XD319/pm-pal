@@ -170,10 +170,22 @@ def should_skip_request_logging(path: str) -> bool:
     )
 
 
+def _is_project_review_submission(path: str) -> bool:
+    parts = [part for part in str(path or "").strip("/").split("/") if part]
+    return (
+        len(parts) == 4
+        and parts[0] == "api"
+        and parts[1] == "projects"
+        and parts[3] == "reviews"
+    )
+
+
 def enforce_submission_rate_limit(
     request: Request, settings: ApiSecuritySettings
 ) -> JSONResponse | None:
-    if request.method.upper() != "POST" or request.url.path != "/api/review":
+    if request.method.upper() != "POST" or not _is_project_review_submission(
+        request.url.path
+    ):
         return None
     if settings.rate_limit_disabled:
         return None
