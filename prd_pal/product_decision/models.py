@@ -58,3 +58,69 @@ class EvidenceRecord(AgentSchemaModel):
 class SyncTrigger(StrEnum):
     scheduled = "scheduled"
     manual = "manual"
+
+
+class OpportunityCandidateStatus(StrEnum):
+    proposed = "proposed"
+    pending_approval = "pending_approval"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class DecisionInsight(AgentSchemaModel):
+    id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    summary: str = ""
+    theme: str = ""
+    evidence_refs: SafeStrList = Field(default_factory=list)
+    source_refs: SafeStrList = Field(default_factory=list)
+    source_urls: SafeStrList = Field(default_factory=list)
+    version: int = 1
+    audit_id: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityCandidate(AgentSchemaModel):
+    id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    problem: str = ""
+    users: str = ""
+    value: str = ""
+    status: OpportunityCandidateStatus = OpportunityCandidateStatus.proposed
+    insight_ids: SafeStrList = Field(default_factory=list)
+    evidence_refs: SafeStrList = Field(default_factory=list)
+    source_refs: SafeStrList = Field(default_factory=list)
+    source_urls: SafeStrList = Field(default_factory=list)
+    score: float = 0.0
+    score_method: str = ""
+    score_details: dict[str, float] = Field(default_factory=dict)
+    version: int = 1
+    audit_id: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DecisionAuditEvent(AgentSchemaModel):
+    id: str = Field(min_length=1)
+    product_id: str = ""
+    artifact_type: str = Field(min_length=1)
+    artifact_id: str = Field(min_length=1)
+    action: str = Field(min_length=1)
+    actor: str = ""
+    reason: str = ""
+    artifact_version: int = 1
+    created_at: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WriteReceipt(AgentSchemaModel):
+    artifact_id: str = Field(min_length=1)
+    version: int = 1
+    audit_id: str = Field(min_length=1)
+    next_human_action: str = ""
+    status: str = ""

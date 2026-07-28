@@ -1,4 +1,15 @@
-"""Deterministic PM pipeline: capture -> cluster -> opportunity -> prd -> review."""
+"""Deterministic PM pipeline orchestration (compatibility path).
+
+Stage work lives in independent services:
+- capture_feedback (collect)
+- cluster_feedback (insight attribution)
+- build_opportunity (candidate generation)
+- draft_prd_from_opportunity (legacy PRD path)
+
+The decision workspace (`prd_pal.product_decision.services`) is the gated path for
+evidence-backed insights and proposed opportunities. This module keeps
+``/api/pm/pipeline/run`` working as a compatibility orchestrator.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +30,10 @@ from .schemas import (
     PipelineStage,
     PipelineStatus,
 )
+
+# Explicit stage aliases so callers can import the split services directly.
+attribute_insights = cluster_feedback
+generate_opportunity_candidate = build_opportunity
 
 
 def _new_feedback_id() -> str:
@@ -211,4 +226,12 @@ async def run_pm_pipeline(
         "prd": prd.model_dump(mode="python") if prd else None,
         "review": review_payload,
         "db_path": str(repo.db_path) if owned_repo or db_path else "",
+        "compatibility": {
+            "orchestrator": "pm_pipeline",
+            "note": "Formal decision-workspace candidates cannot mint PRDs without owner approval.",
+        },
     }
+
+
+# Compat alias for the collect stage.
+collect_feedback = capture_feedback

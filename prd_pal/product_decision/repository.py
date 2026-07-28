@@ -9,7 +9,15 @@ from typing import Any
 from prd_pal.utils.time import utc_now_iso
 from prd_pal.workspace.repository_support import RepositoryResult, SQLiteRepositoryBase
 
-from .models import EvidenceRecord, EvidenceSource, SourceSyncStatus
+from .models import (
+    DecisionAuditEvent,
+    DecisionInsight,
+    EvidenceRecord,
+    EvidenceSource,
+    OpportunityCandidate,
+    OpportunityCandidateStatus,
+    SourceSyncStatus,
+)
 
 
 class ProductDecisionRepository(SQLiteRepositoryBase):
@@ -279,6 +287,180 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
 
         return await self._run("product_decision.list_evidence", operation)
 
+    async def upsert_insight(
+        self, insight: DecisionInsight
+    ) -> RepositoryResult[DecisionInsight]:
+        async def operation(connection: Any) -> DecisionInsight:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_insight
+                (id, product_id, title, summary, theme, evidence_refs_json, source_refs_json,
+                 source_urls_json, version, audit_id, created_at, updated_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                product_id=excluded.product_id, title=excluded.title, summary=excluded.summary,
+                theme=excluded.theme, evidence_refs_json=excluded.evidence_refs_json,
+                source_refs_json=excluded.source_refs_json, source_urls_json=excluded.source_urls_json,
+                version=excluded.version, audit_id=excluded.audit_id, updated_at=excluded.updated_at,
+                metadata_json=excluded.metadata_json""",
+                (
+                    insight.id,
+                    insight.product_id,
+                    insight.title,
+                    insight.summary,
+                    insight.theme,
+                    self._dump_json(insight.evidence_refs),
+                    self._dump_json(insight.source_refs),
+                    self._dump_json(insight.source_urls),
+                    insight.version,
+                    insight.audit_id,
+                    insight.created_at,
+                    insight.updated_at,
+                    self._dump_json(insight.metadata),
+                ),
+            )
+            await connection.commit()
+            return insight
+
+        return await self._run("product_decision.upsert_insight", operation)
+
+    async def list_insights(
+        self, *, product_id: str = ""
+    ) -> RepositoryResult[list[DecisionInsight]]:
+        async def operation(connection: Any) -> list[DecisionInsight]:
+            await self._ensure_schema(connection)
+            query = "SELECT * FROM decision_insight"
+            params: tuple[str, ...] = ()
+            if product_id:
+                query += " WHERE product_id = ?"
+                params = (product_id,)
+            query += " ORDER BY updated_at DESC, id"
+            rows = await (await connection.execute(query, params)).fetchall()
+            return [self._insight_from_row(row) for row in rows]
+
+        return await self._run("product_decision.list_insights", operation)
+
+    async def get_insight(self, insight_id: str) -> RepositoryResult[DecisionInsight]:
+        async def operation(connection: Any) -> DecisionInsight:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_insight WHERE id = ?", (insight_id,)
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("insight", insight_id)
+            return self._insight_from_row(row)
+
+        return await self._run("product_decision.get_insight", operation)
+
+    async def upsert_opportunity(
+        self, opportunity: OpportunityCandidate
+    ) -> RepositoryResult[OpportunityCandidate]:
+        async def operation(connection: Any) -> OpportunityCandidate:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_opportunity
+                (id, product_id, title, problem, users, value, status, insight_ids_json,
+                 evidence_refs_json, source_refs_json, source_urls_json, score, score_method,
+                 score_details_json, version, audit_id, created_at, updated_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                product_id=excluded.product_id, title=excluded.title, problem=excluded.problem,
+                users=excluded.users, value=excluded.value, status=excluded.status,
+                insight_ids_json=excluded.insight_ids_json, evidence_refs_json=excluded.evidence_refs_json,
+                source_refs_json=excluded.source_refs_json, source_urls_json=excluded.source_urls_json,
+                score=excluded.score, score_method=excluded.score_method,
+                score_details_json=excluded.score_details_json, version=excluded.version,
+                audit_id=excluded.audit_id, updated_at=excluded.updated_at,
+                metadata_json=excluded.metadata_json""",
+                (
+                    opportunity.id,
+                    opportunity.product_id,
+                    opportunity.title,
+                    opportunity.problem,
+                    opportunity.users,
+                    opportunity.value,
+                    str(opportunity.status),
+                    self._dump_json(opportunity.insight_ids),
+                    self._dump_json(opportunity.evidence_refs),
+                    self._dump_json(opportunity.source_refs),
+                    self._dump_json(opportunity.source_urls),
+                    float(opportunity.score),
+                    opportunity.score_method,
+                    self._dump_json(opportunity.score_details),
+                    opportunity.version,
+                    opportunity.audit_id,
+                    opportunity.created_at,
+                    opportunity.updated_at,
+                    self._dump_json(opportunity.metadata),
+                ),
+            )
+            await connection.commit()
+            return opportunity
+
+        return await self._run("product_decision.upsert_opportunity", operation)
+
+    async def get_opportunity(
+        self, opportunity_id: str
+    ) -> RepositoryResult[OpportunityCandidate]:
+        async def operation(connection: Any) -> OpportunityCandidate:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_opportunity WHERE id = ?", (opportunity_id,)
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("opportunity", opportunity_id)
+            return self._opportunity_from_row(row)
+
+        return await self._run("product_decision.get_opportunity", operation)
+
+    async def list_opportunities(
+        self, *, product_id: str = ""
+    ) -> RepositoryResult[list[OpportunityCandidate]]:
+        async def operation(connection: Any) -> list[OpportunityCandidate]:
+            await self._ensure_schema(connection)
+            query = "SELECT * FROM decision_opportunity"
+            params: tuple[str, ...] = ()
+            if product_id:
+                query += " WHERE product_id = ?"
+                params = (product_id,)
+            query += " ORDER BY updated_at DESC, id"
+            rows = await (await connection.execute(query, params)).fetchall()
+            return [self._opportunity_from_row(row) for row in rows]
+
+        return await self._run("product_decision.list_opportunities", operation)
+
+    async def append_audit(
+        self, event: DecisionAuditEvent
+    ) -> RepositoryResult[DecisionAuditEvent]:
+        async def operation(connection: Any) -> DecisionAuditEvent:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_audit_event
+                (id, product_id, artifact_type, artifact_id, action, actor, reason,
+                 artifact_version, created_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event.id,
+                    event.product_id,
+                    event.artifact_type,
+                    event.artifact_id,
+                    event.action,
+                    event.actor,
+                    event.reason,
+                    event.artifact_version,
+                    event.created_at,
+                    self._dump_json(event.metadata),
+                ),
+            )
+            await connection.commit()
+            return event
+
+        return await self._run("product_decision.append_audit", operation)
+
     async def _source_exists(self, connection: Any, source_id: str) -> EvidenceSource:
         row = await (
             await connection.execute(
@@ -328,6 +510,58 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
         );
         CREATE INDEX IF NOT EXISTS idx_decision_evidence_product
             ON decision_evidence(product_id, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS decision_insight (
+            id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            summary TEXT NOT NULL DEFAULT '',
+            theme TEXT NOT NULL DEFAULT '',
+            evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_urls_json TEXT NOT NULL DEFAULT '[]',
+            version INTEGER NOT NULL DEFAULT 1,
+            audit_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+        CREATE TABLE IF NOT EXISTS decision_opportunity (
+            id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            problem TEXT NOT NULL DEFAULT '',
+            users TEXT NOT NULL DEFAULT '',
+            value TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL,
+            insight_ids_json TEXT NOT NULL DEFAULT '[]',
+            evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_refs_json TEXT NOT NULL DEFAULT '[]',
+            source_urls_json TEXT NOT NULL DEFAULT '[]',
+            score REAL NOT NULL DEFAULT 0,
+            score_method TEXT NOT NULL DEFAULT '',
+            score_details_json TEXT NOT NULL DEFAULT '{}',
+            version INTEGER NOT NULL DEFAULT 1,
+            audit_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+        CREATE TABLE IF NOT EXISTS decision_audit_event (
+            id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL DEFAULT '',
+            artifact_type TEXT NOT NULL,
+            artifact_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            actor TEXT NOT NULL DEFAULT '',
+            reason TEXT NOT NULL DEFAULT '',
+            artifact_version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+        CREATE INDEX IF NOT EXISTS idx_decision_insight_product
+            ON decision_insight(product_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_decision_opportunity_product
+            ON decision_opportunity(product_id, updated_at DESC);
         """
         )
         await self._ensure_column(
@@ -390,6 +624,50 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
             metadata=self._load_json_object(row["metadata_json"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+        )
+
+    def _insight_from_row(self, row: Any) -> DecisionInsight:
+        return DecisionInsight(
+            id=row["id"],
+            product_id=row["product_id"],
+            title=row["title"],
+            summary=row["summary"],
+            theme=row["theme"],
+            evidence_refs=self._load_json_list(row["evidence_refs_json"]),
+            source_refs=self._load_json_list(row["source_refs_json"]),
+            source_urls=self._load_json_list(row["source_urls_json"]),
+            version=int(row["version"] or 1),
+            audit_id=row["audit_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            metadata=self._load_json_object(row["metadata_json"]),
+        )
+
+    def _opportunity_from_row(self, row: Any) -> OpportunityCandidate:
+        return OpportunityCandidate(
+            id=row["id"],
+            product_id=row["product_id"],
+            title=row["title"],
+            problem=row["problem"],
+            users=row["users"],
+            value=row["value"],
+            status=OpportunityCandidateStatus(str(row["status"])),
+            insight_ids=self._load_json_list(row["insight_ids_json"]),
+            evidence_refs=self._load_json_list(row["evidence_refs_json"]),
+            source_refs=self._load_json_list(row["source_refs_json"]),
+            source_urls=self._load_json_list(row["source_urls_json"]),
+            score=float(row["score"] or 0),
+            score_method=str(row["score_method"] or ""),
+            score_details={
+                str(key): float(value)
+                for key, value in self._load_json_object(row["score_details_json"]).items()
+                if isinstance(value, (int, float))
+            },
+            version=int(row["version"] or 1),
+            audit_id=row["audit_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            metadata=self._load_json_object(row["metadata_json"]),
         )
 
 

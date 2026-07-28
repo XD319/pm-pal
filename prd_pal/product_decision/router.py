@@ -13,6 +13,13 @@ from .feishu_client import FeishuEvidenceClient
 from .models import EvidenceRecord, EvidenceSource, EvidenceSourceType, SyncTrigger
 from .repository import ProductDecisionRepository
 from .scheduler import DailyEvidenceSyncScheduler
+from .services import (
+    CollectService,
+    DecisionDomainError,
+    EvaluateService,
+    InsightService,
+    OpportunityService,
+)
 from .sync_service import EvidenceSyncService
 
 
@@ -42,6 +49,53 @@ class EvidenceSyncItem(BaseModel):
 class EvidenceSyncRequest(BaseModel):
     cursor: str = ""
     records: list[EvidenceSyncItem] = Field(default_factory=list)
+
+
+class InsightCreateRequest(BaseModel):
+    product_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    summary: str = ""
+    theme: str = ""
+    evidence_refs: list[str] = Field(default_factory=list)
+    actor: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityCreateRequest(BaseModel):
+    product_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    problem: str = ""
+    users: str = ""
+    value: str = ""
+    insight_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    actor: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityUpdateRequest(BaseModel):
+    title: str | None = None
+    problem: str | None = None
+    users: str | None = None
+    value: str | None = None
+    add_evidence_refs: list[str] = Field(default_factory=list)
+    actor: str = ""
+    reason: str = ""
+
+
+class OpportunityActionRequest(BaseModel):
+    actor: str = ""
+    reason: str = ""
+
+
+class OpportunityEvaluateRequest(BaseModel):
+    method: str = "rice"
+    reach: float = 1.0
+    impact: float = 1.0
+    confidence: float = 1.0
+    effort: float = 1.0
+    ease: float = 1.0
+    actor: str = ""
 
 
 def create_product_decision_router(
@@ -185,12 +239,155 @@ def create_product_decision_router(
     async def list_evidence(
         product_id: str = "", query: str = "", limit: int = 100
     ) -> dict:
-        result = await (await repo()).list_evidence(
-            product_id=product_id, query=query, limit=limit
-        )
+        collect = CollectService(await repo())
+        try:
+            evidence = await collect.search_evidence(
+                product_id=product_id, query=query, limit=limit
+            )
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {"evidence": [item.model_dump(mode="json") for item in evidence]}
+
+    @router.post("/insights")
+    async def create_insight(payload: InsightCreateRequest) -> dict:
+        service = InsightService(await repo())
+        try:
+            insight, receipt = await service.create_insight(**payload.model_dump())
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
         return {
-            "evidence": [item.model_dump(mode="json") for item in (result.value or [])]
+            "insight": insight.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
         }
+
+    @router.get("/insights")
+    async def list_insights(product_id: str = "") -> dict:
+        service = InsightService(await repo())
+        try:
+            insights = await service.list_insights(product_id=product_id)
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {"insights": [item.model_dump(mode="json") for item in insights]}
+
+    @router.post("/opportunities")
+    async def create_opportunity(payload: OpportunityCreateRequest) -> dict:
+        service = OpportunityService(await repo())
+        try:
+            opportunity, receipt = await service.create_candidate(**payload.model_dump())
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.get("/opportunities")
+    async def list_opportunities(product_id: str = "") -> dict:
+        service = OpportunityService(await repo())
+        try:
+            opportunities = await service.list_candidates(product_id=product_id)
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=422, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunities": [item.model_dump(mode="json") for item in opportunities]
+        }
+
+    @router.patch("/opportunities/{opportunity_id}")
+    async def update_opportunity(
+        opportunity_id: str, payload: OpportunityUpdateRequest
+    ) -> dict:
+        service = OpportunityService(await repo())
+        try:
+            opportunity, receipt = await service.update_candidate(
+                opportunity_id, **payload.model_dump()
+            )
+        except DecisionDomainError as exc:
+            status = 404 if exc.code == "opportunity_not_found" else 422
+            raise HTTPException(
+                status_code=status, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/opportunities/{opportunity_id}/reject")
+    async def reject_opportunity(
+        opportunity_id: str, payload: OpportunityActionRequest
+    ) -> dict:
+        service = OpportunityService(await repo())
+        try:
+            opportunity, receipt = await service.reject(
+                opportunity_id, actor=payload.actor, reason=payload.reason
+            )
+        except DecisionDomainError as exc:
+            status = 404 if exc.code == "opportunity_not_found" else 422
+            raise HTTPException(
+                status_code=status, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/opportunities/{opportunity_id}/submit")
+    async def submit_opportunity(
+        opportunity_id: str, payload: OpportunityActionRequest
+    ) -> dict:
+        service = OpportunityService(await repo())
+        try:
+            opportunity, receipt = await service.submit_for_approval(
+                opportunity_id, actor=payload.actor, reason=payload.reason
+            )
+        except DecisionDomainError as exc:
+            status = 404 if exc.code == "opportunity_not_found" else 422
+            raise HTTPException(
+                status_code=status, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/opportunities/{opportunity_id}/evaluate")
+    async def evaluate_opportunity(
+        opportunity_id: str, payload: OpportunityEvaluateRequest
+    ) -> dict:
+        service = EvaluateService(await repo())
+        try:
+            opportunity, receipt = await service.evaluate(
+                opportunity_id, **payload.model_dump()
+            )
+        except DecisionDomainError as exc:
+            status = 404 if exc.code == "opportunity_not_found" else 422
+            raise HTTPException(
+                status_code=status, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        return {
+            "opportunity": opportunity.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.post("/opportunities/{opportunity_id}/prd")
+    async def create_prd_blocked(opportunity_id: str) -> dict:
+        service = OpportunityService(await repo())
+        try:
+            await service.create_formal_prd(opportunity_id)
+        except DecisionDomainError as exc:
+            raise HTTPException(
+                status_code=409, detail={"code": exc.code, "message": exc.message}
+            ) from exc
+        raise HTTPException(status_code=500, detail={"code": "unexpected_prd_path"})
 
     return router
 
