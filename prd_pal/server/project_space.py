@@ -16,6 +16,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from prd_pal.runtime.llm_provider.generic.base import _SUPPORTED_PROVIDERS
+from prd_pal.connectors.sync import ConnectorSyncStore, register_connector_sync_routes
 from prd_pal.service.materials_service import (
     MAX_UPLOAD_BYTES,
     create_source_version,
@@ -194,6 +195,7 @@ def create_project_space_router(
     get_report: Callable[[str, str], Awaitable[Response]] | None = None,
 ) -> APIRouter:
     store, secrets = Store(db_path), SecretBox(); store.initialize()
+    sync_store = ConnectorSyncStore(db_path); sync_store.initialize()
     router = APIRouter(prefix="/api", tags=["project-space"])
     def public_connection(row):
         row = dict(row)
@@ -516,6 +518,14 @@ def create_project_space_router(
         if not rows:
             raise HTTPException(404, detail="Review run is not linked to a project")
         return {"project_id": rows[0]["project_id"], "run_id": run_id}
+
+    register_connector_sync_routes(
+        router,
+        sync_store=sync_store,
+        get_project=get_project,
+        new_id=new_id,
+        now=now,
+    )
 
     return router
 
