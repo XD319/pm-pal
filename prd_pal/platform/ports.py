@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 from typing import Any, Protocol
 
 
@@ -15,7 +14,19 @@ class ArtifactStore(Protocol):
 
 
 class JobQueue(Protocol):
-    async def enqueue(self, *, key: str, kind: str, payload: dict[str, Any], handler: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]) -> dict[str, Any]: ...
+    async def enqueue(
+        self,
+        *,
+        key: str,
+        kind: str,
+        payload: dict[str, Any],
+        handler: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
+    ) -> dict[str, Any]: ...
+
+    async def recover(
+        self,
+        handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]] | None = None,
+    ) -> list[dict[str, Any]]: ...
 
 
 class NotificationSink(Protocol):

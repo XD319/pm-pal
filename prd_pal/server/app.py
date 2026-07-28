@@ -123,6 +123,7 @@ log = get_logger("server.http")
     _product_decision_repository,
     _product_decision_sync_service,
     _product_decision_scheduler,
+    _product_decision_job_queue,
 ) = build_default_sync_stack(
     db_path=PRODUCT_DECISION_DB_PATH,
     artifacts_root=PRODUCT_DECISION_ARTIFACTS_ROOT,
@@ -137,9 +138,12 @@ async def _app_lifespan(app: FastAPI):
     PRODUCT_DECISION_ARTIFACTS_ROOT.mkdir(parents=True, exist_ok=True)
     await _job_registry.recover()
     await _product_decision_repository.initialize()
+    await _product_decision_job_queue.initialize()
+    await _product_decision_job_queue.recover()
     _product_decision_scheduler.start()
     app.state.product_decision_sync = _product_decision_sync_service
     app.state.product_decision_scheduler = _product_decision_scheduler
+    app.state.product_decision_job_queue = _product_decision_job_queue
     app.state.startup_completed = True
     try:
         yield

@@ -1109,6 +1109,159 @@ def _extract_client_metadata(
     return metadata
 
 
+@mcp.tool()
+async def search_decision_evidence(
+    product_id: str = "",
+    query: str = "",
+    limit: int = 50,
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Search durable decision-workspace evidence with optional product filter."""
+    from prd_pal.product_decision.mcp_tools import search_decision_evidence_for_mcp
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="search_decision_evidence"
+    )
+    return await search_decision_evidence_for_mcp(
+        product_id=product_id, query=query, limit=limit, options=audited
+    )
+
+
+@mcp.tool()
+async def create_opportunity_candidate(
+    product_id: str,
+    title: str,
+    problem: str = "",
+    users: str = "",
+    value: str = "",
+    insight_ids: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+    actor: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Create a proposed opportunity candidate; cannot mint a formal PRD directly."""
+    from prd_pal.product_decision.mcp_tools import create_opportunity_candidate_for_mcp
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="create_opportunity_candidate"
+    )
+    return await create_opportunity_candidate_for_mcp(
+        product_id=product_id,
+        title=title,
+        problem=problem,
+        users=users,
+        value=value,
+        insight_ids=insight_ids,
+        evidence_refs=evidence_refs,
+        actor=actor,
+        options=audited,
+    )
+
+
+@mcp.tool()
+async def submit_opportunity_decision(
+    opportunity_id: str,
+    action: str,
+    actor_open_id: str = "",
+    reason: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Submit, approve, or reject an opportunity candidate decision."""
+    from prd_pal.product_decision.mcp_tools import submit_opportunity_decision_for_mcp
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="submit_opportunity_decision"
+    )
+    return await submit_opportunity_decision_for_mcp(
+        opportunity_id=opportunity_id,
+        action=action,
+        actor_open_id=actor_open_id,
+        reason=reason,
+        options=audited,
+    )
+
+
+@mcp.tool()
+async def generate_formal_prd(
+    opportunity_id: str,
+    title: str = "",
+    markdown: str = "",
+    actor_open_id: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Generate a formal PRD version from an owner-approved opportunity."""
+    from prd_pal.product_decision.mcp_tools import generate_formal_prd_for_mcp
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="generate_formal_prd"
+    )
+    return await generate_formal_prd_for_mcp(
+        opportunity_id=opportunity_id,
+        title=title,
+        markdown=markdown,
+        actor_open_id=actor_open_id,
+        options=audited,
+    )
+
+
+@mcp.tool()
+async def request_prd_quality_assessment(
+    prd_version_id: str,
+    actor_open_id: str = "",
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Request quality assessment for a formal PRD version via QualityEngine."""
+    from prd_pal.product_decision.mcp_tools import (
+        request_prd_quality_assessment_for_mcp,
+    )
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="request_prd_quality_assessment"
+    )
+    return await request_prd_quality_assessment_for_mcp(
+        prd_version_id=prd_version_id,
+        actor_open_id=actor_open_id,
+        options=audited,
+    )
+
+
+@mcp.tool()
+async def export_approved_delivery_package(
+    prd_version_id: str,
+    actor_open_id: str = "",
+    app_token: str = "",
+    table_id: str = "",
+    project_key: str = "",
+    field_mapping: dict[str, str] | None = None,
+    enable_project: bool = False,
+    options: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Export a ready_for_delivery PRD package to Feishu bitable/project targets."""
+    from prd_pal.product_decision.mcp_tools import (
+        export_approved_delivery_package_for_mcp,
+    )
+
+    audited = _with_audit_context(
+        options=options, ctx=ctx, tool_name="export_approved_delivery_package"
+    )
+    return await export_approved_delivery_package_for_mcp(
+        prd_version_id=prd_version_id,
+        actor_open_id=actor_open_id,
+        app_token=app_token,
+        table_id=table_id,
+        project_key=project_key,
+        field_mapping=field_mapping,
+        enable_project=enable_project,
+        options=audited,
+    )
+
+
 def _review_input_error_response(exc: Exception) -> dict[str, str] | None:
     classified_error = classify_review_input_error(exc)
     if classified_error is None:

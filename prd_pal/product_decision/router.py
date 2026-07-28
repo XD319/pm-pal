@@ -216,6 +216,33 @@ def create_product_decision_router(
             )
         return {"source": result.value.model_dump(mode="json")}
 
+    @router.get("/sources/{source_id}/sync-status")
+    async def get_sync_status(source_id: str) -> dict:
+        repository = await repo()
+        result = await repository.get_source(source_id)
+        if not result.ok or result.value is None:
+            raise HTTPException(
+                status_code=404, detail={"code": "source_not_found", "message": source_id}
+            )
+        source = result.value
+        job_key_prefix = f"evidence-sync:{source_id}:"
+        jobs = []
+        queue_obj = getattr(sync_service, "job_queue", queue) if sync_service else queue
+        if hasattr(queue_obj, "list_jobs"):
+            jobs = [
+                item
+                for item in await queue_obj.list_jobs()
+                if str(item.get("key") or "").startswith(job_key_prefix)
+            ]
+        return {
+            "source_id": source_id,
+            "sync_status": str(source.sync_status),
+            "sync_cursor": source.sync_cursor,
+            "last_synced_at": source.last_synced_at,
+            "last_error": source.last_error,
+            "jobs": jobs[:10],
+        }
+
     @router.post("/sources/{source_id}/sync")
     async def sync_source(source_id: str, payload: EvidenceSyncRequest) -> dict:
         """Compatibility path: inject already-fetched records (tests / adapters)."""
@@ -610,6 +637,58 @@ def create_product_decision_router(
             "deliveries": [item.model_dump(mode="json") for item in (result.value or [])]
         }
 
+    @router.get("/prd-versions/{prd_version_id}/quality")
+    async def get_prd_quality(prd_version_id: str) -> dict:
+        repository = await repo()
+        version = await repository.get_prd_version(prd_version_id)
+        if not version.ok or version.value is None:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "prd_version_not_found", "message": prd_version_id},
+            )
+        assessment = None
+        if version.value.quality_assessment_id:
+            stored = await repository.get_quality_assessment(
+                version.value.quality_assessment_id
+            )
+            if stored.ok and stored.value is not None:
+                assessment = stored.value.model_dump(mode="json")
+        return {
+            "prd_version": version.value.model_dump(mode="json"),
+            "quality_assessment": assessment,
+            "quality_decision": version.value.quality_decision,
+        }
+
+    @router.get("/trace/{root_id}")
+    async def get_decision_trace(root_id: str) -> dict:
+        from .traceability import build_decision_trace
+
+        try:
+            return await build_decision_trace(await repo(), root_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=404, detail={"code": "trace_not_found", "message": str(exc)}
+            ) from exc
+
+    @router.get("/jobs")
+    async def list_decision_jobs(status: str = "") -> dict:
+        queue_obj = getattr(sync_service, "job_queue", queue) if sync_service else queue
+        if not hasattr(queue_obj, "list_jobs"):
+            return {"jobs": []}
+        return {"jobs": await queue_obj.list_jobs(status=status)}
+
+    @router.get("/jobs/{job_key:path}")
+    async def get_decision_job(job_key: str) -> dict:
+        queue_obj = getattr(sync_service, "job_queue", queue) if sync_service else queue
+        if not hasattr(queue_obj, "get"):
+            raise HTTPException(status_code=404, detail={"code": "job_not_found"})
+        record = await queue_obj.get(job_key)
+        if record is None:
+            raise HTTPException(
+                status_code=404, detail={"code": "job_not_found", "message": job_key}
+            )
+        return {"job": record}
+
     return router
 
 
@@ -618,15 +697,25 @@ def build_default_sync_stack(
     db_path: str | Path,
     artifacts_root: str | Path | None = None,
     admin_open_ids: list[str] | None = None,
-) -> tuple[ProductDecisionRepository, EvidenceSyncService, DailyEvidenceSyncScheduler]:
+    job_db_path: str | Path | None = None,
+) -> tuple[
+    ProductDecisionRepository,
+    EvidenceSyncService,
+    DailyEvidenceSyncScheduler,
+    LocalJobQueue,
+]:
     repository = ProductDecisionRepository(db_path)
+    resolved_artifacts = Path(artifacts_root or Path("data") / "artifacts")
+    queue = LocalJobQueue(
+        job_db_path or (Path(db_path).parent / "decision_jobs.sqlite3")
+    )
     service = EvidenceSyncService(
         repository,
-        job_queue=LocalJobQueue(),
+        job_queue=queue,
         notifications=NullNotificationSink(),
-        artifacts=LocalArtifactStore(artifacts_root or Path("data") / "artifacts"),
+        artifacts=LocalArtifactStore(resolved_artifacts),
         client=FeishuEvidenceClient(),
         admin_open_ids=admin_open_ids,
     )
     scheduler = DailyEvidenceSyncScheduler(service)
-    return repository, service, scheduler
+    return repository, service, scheduler, queue
