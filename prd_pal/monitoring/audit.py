@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from prd_pal.utils.redaction import redact_mapping
 from prd_pal.utils.time import utc_now_iso as _utc_now_iso
 
 AUDIT_LOG_FILENAME = "audit_log.jsonl"
@@ -72,14 +73,14 @@ def append_audit_event(
     run_dir_path.mkdir(parents=True, exist_ok=True)
     context = normalize_audit_context(audit_context)
 
-    merged_details = dict(details) if isinstance(details, dict) else {}
+    merged_details = redact_mapping(dict(details) if isinstance(details, dict) else {})
     tool_name = str(context.get("tool_name") or "").strip()
     if tool_name and "tool_name" not in merged_details:
         merged_details["tool_name"] = tool_name
 
-    merged_client_metadata = resolve_audit_client_metadata(context)
+    merged_client_metadata = redact_mapping(resolve_audit_client_metadata(context))
     if isinstance(client_metadata, dict):
-        merged_client_metadata.update(client_metadata)
+        merged_client_metadata.update(redact_mapping(client_metadata))
 
     normalized_actor = str(actor or "").strip() or resolve_audit_actor(
         context, default=""

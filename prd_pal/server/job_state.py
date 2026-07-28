@@ -492,8 +492,10 @@ def persist_job_snapshot(job: JobRecord) -> None:
 
 
 def write_job_snapshot(run_dir: Path, payload: dict[str, Any]) -> None:
+    from prd_pal.utils.redaction import redact_mapping
+
     progress_snapshot_path(run_dir).write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
+        json.dumps(redact_mapping(payload), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 

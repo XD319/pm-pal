@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from prd_pal.monitoring import resolve_audit_client_metadata
+from prd_pal.utils.redaction import redact_mapping
 from prd_pal.utils.time import utc_now_iso
 
 RUN_ENTRY_CONTEXT_FILENAME = "entry_context.json"
@@ -95,7 +96,7 @@ def persist_run_entry_context(
     if entry_context is None:
         return None
     entry_context_path(run_dir).write_text(
-        json.dumps(entry_context, ensure_ascii=False, indent=2),
+        json.dumps(redact_mapping(entry_context), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     return entry_context
