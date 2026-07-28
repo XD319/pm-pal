@@ -1,0 +1,51 @@
+tenant: pilot-single-team
+timezone: Asia/Shanghai
+product:
+  id: p-pilot
+  name: Pilot Product
+  owner_open_id: ou_owner_pilot
+  admin_open_ids:
+    - ou_admin_pilot
+sources:
+  - source_type: feishu_doc
+    external_id: doc_pilot_notes
+    source_url: https://example.feishu.cn/docx/doc_pilot_notes
+    display_name: Pilot meeting notes
+  - source_type: feishu_bitable
+    external_id: app_pilot:tbl_feedback
+    source_url: https://example.feishu.cn/base/app_pilot?table=tbl_feedback
+    display_name: Feedback inbox
+    field_mapping:
+      content: 反馈内容
+      author: 提交人
+      occurred_at: 更新时间
+delivery:
+  default_target: feishu_bitable
+  bitable:
+    app_token: app_pilot
+    table_id: tbl_delivery
+    field_mapping:
+      requirement: 需求
+      user_stories: 用户故事
+      acceptance_criteria: 验收标准
+      risks: 风险
+      owner: 负责人
+      quality_decision: 质量结论
+      prd_link: PRD链接
+      evidence_links: 证据链接
+      audit_id: 审计ID
+  feishu_project:
+    enabled: false
+    project_key: ""
+feishu:
+  permissions:
+    - docx:readonly
+    - bitable:readonly
+    - bitable:readwrite
+  h5_base_url: https://example.feishu.cn/app
+out_of_scope:
+  - realtime_messaging
+  - jira_linear_bidirectional_sync
+  - analytics_closed_loop
+  - multi_team_permissions
+  - managed_saas
