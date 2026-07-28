@@ -67,7 +67,7 @@ from prd_pal.server.security import (
 )
 from prd_pal.server.sse import ProgressBroadcaster
 from prd_pal.server.pm_router import create_pm_router
-from prd_pal.server.project_space import create_project_space_router
+from prd_pal.server.project_space import create_project_space_router, new_id, now
 from prd_pal.product_decision.router import (
     build_default_sync_stack,
     create_product_decision_router,
@@ -1566,6 +1566,22 @@ async def _project_get_report(
     )
 
 
+_project_space_router, _feishu_config_store, _project_sync_store = create_project_space_router(
+    db_path=PROJECT_SPACE_DB_PATH,
+    enqueue_review=_enqueue_review_run,
+    get_run_status=_project_get_review_status,
+    get_run_result=_project_get_review_result,
+    stream_progress=_project_stream_review_progress,
+    submit_clarification=_project_submit_clarification,
+    update_revision_stage=_project_update_revision_stage,
+    submit_revision_input=_project_submit_revision_input,
+    generate_revision=_project_generate_revision,
+    confirm_revision=_project_confirm_revision,
+    generate_roadmap=_project_generate_roadmap,
+    get_artifact_preview=_project_get_artifact_preview,
+    get_report=_project_get_report,
+)
+app.include_router(_project_space_router)
 app.include_router(
     create_feishu_router(
         submit_review_run=_enqueue_review_run,
@@ -1578,26 +1594,13 @@ app.include_router(
         derive_workspace_version=_derive_feishu_workspace_version,
         get_workspace_diff=_get_feishu_workspace_diff,
         update_workspace_roadmap=_update_feishu_workspace_roadmap,
+        sync_store=_project_sync_store,
+        config_store=_feishu_config_store,
+        new_id=new_id,
+        now=now,
     )
 )
 app.include_router(create_pm_router())
-app.include_router(
-    create_project_space_router(
-        db_path=PROJECT_SPACE_DB_PATH,
-        enqueue_review=_enqueue_review_run,
-        get_run_status=_project_get_review_status,
-        get_run_result=_project_get_review_result,
-        stream_progress=_project_stream_review_progress,
-        submit_clarification=_project_submit_clarification,
-        update_revision_stage=_project_update_revision_stage,
-        submit_revision_input=_project_submit_revision_input,
-        generate_revision=_project_generate_revision,
-        confirm_revision=_project_confirm_revision,
-        generate_roadmap=_project_generate_roadmap,
-        get_artifact_preview=_project_get_artifact_preview,
-        get_report=_project_get_report,
-    )
-)
 app.include_router(
     create_product_decision_router(
         db_path=PRODUCT_DECISION_DB_PATH,

@@ -37,7 +37,7 @@ def provider_client(tmp_path: Path, master_key: str):
         create_project_space_router(
             db_path=tmp_path / "project_space.sqlite3",
             enqueue_review=enqueue_review,
-        )
+        )[0]
     )
     return TestClient(app), captured
 

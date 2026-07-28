@@ -16,7 +16,10 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from prd_pal.runtime.llm_provider.generic.base import _SUPPORTED_PROVIDERS
+from prd_pal.connectors.feishu_sync import register_feishu_sync_handler
 from prd_pal.connectors.sync import ConnectorSyncStore, register_connector_sync_routes
+from prd_pal.integrations.feishu.config_routes import register_feishu_connector_config_routes
+from prd_pal.integrations.feishu.config_store import FeishuConfigStore
 from prd_pal.service.materials_service import (
     MAX_UPLOAD_BYTES,
     create_source_version,
@@ -196,6 +199,18 @@ def create_project_space_router(
 ) -> APIRouter:
     store, secrets = Store(db_path), SecretBox(); store.initialize()
     sync_store = ConnectorSyncStore(db_path); sync_store.initialize()
+    feishu_config_store = FeishuConfigStore(
+        db_path,
+        encrypt_secret=secrets.encrypt,
+        decrypt_secret=secrets.decrypt,
+    )
+    feishu_config_store.initialize()
+    register_feishu_sync_handler(
+        project_store=store,
+        config_store=feishu_config_store,
+        new_id=new_id,
+        now=now,
+    )
     router = APIRouter(prefix="/api", tags=["project-space"])
     def public_connection(row):
         row = dict(row)
@@ -527,5 +542,12 @@ def create_project_space_router(
         now=now,
     )
 
-    return router
+    register_feishu_connector_config_routes(
+        router,
+        config_store=feishu_config_store,
+        get_project=get_project,
+        now=now,
+    )
+
+    return router, feishu_config_store, sync_store
 

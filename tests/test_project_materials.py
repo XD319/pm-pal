@@ -21,7 +21,7 @@ def materials_client(tmp_path: Path):
         create_project_space_router(
             db_path=tmp_path / "project_space.sqlite3",
             enqueue_review=enqueue_review,
-        )
+        )[0]
     )
     client = TestClient(app)
     project = client.post("/api/projects", json={"name": "Materials", "description": ""}).json()

@@ -78,7 +78,7 @@ def project_client(tmp_path: Path):
             generate_roadmap=generate_roadmap,
             get_artifact_preview=get_artifact_preview,
             get_report=get_report,
-        )
+        )[0]
     )
     client = TestClient(app)
     project = client.post("/api/projects", json={"name": "Demo", "description": ""}).json()

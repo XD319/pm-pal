@@ -6,6 +6,11 @@ from typing import Any, Awaitable, Callable
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from prd_pal.connectors.sync import ConnectorSyncStore
+
+from .config_store import FeishuConfigStore
+from .crypto import FeishuDecryptError
+from .events import decode_request_body, handle_feishu_event_payload, resolve_event_payload
 from .models import (
     FeishuChallengeEvent,
     FeishuClarificationRequest,
@@ -14,7 +19,12 @@ from .models import (
     FeishuWorkspaceDeriveRequest,
     FeishuWorkspaceRoadmapUpdateRequest,
 )
-from .security import FeishuSignatureVerificationError, verify_feishu_signature
+from .security import (
+    FeishuSecuritySettings,
+    FeishuSignatureVerificationError,
+    get_feishu_security_settings,
+    verify_feishu_signature,
+)
 
 SubmitReviewRun = Callable[..., Awaitable[dict[str, str]]]
 SubmitClarification = Callable[..., Awaitable[dict[str, Any]]]
@@ -48,6 +58,23 @@ def _invalid_signature_response(exc: FeishuSignatureVerificationError) -> JSONRe
     )
 
 
+def _resolve_event_security_settings(
+    config_store: FeishuConfigStore | None,
+) -> FeishuSecuritySettings:
+    base = get_feishu_security_settings()
+    if config_store is None:
+        return base
+    config = config_store.get("")
+    webhook_secret = config.resolved_webhook_secret() or base.webhook_secret
+    encrypt_key = config.resolved_encrypt_key() or base.encrypt_key
+    return FeishuSecuritySettings(
+        signature_disabled=base.signature_disabled,
+        webhook_secret=webhook_secret,
+        encrypt_key=encrypt_key,
+        tolerance_sec=base.tolerance_sec,
+    )
+
+
 def create_feishu_router(
     *,
     submit_review_run: SubmitReviewRun,
@@ -60,6 +87,10 @@ def create_feishu_router(
     derive_workspace_version: DeriveWorkspaceVersion,
     get_workspace_diff: GetWorkspaceDiff,
     update_workspace_roadmap: UpdateWorkspaceRoadmap,
+    sync_store: ConnectorSyncStore | None = None,
+    config_store: FeishuConfigStore | None = None,
+    new_id: Callable[[str], str] | None = None,
+    now: Callable[[], str] | None = None,
 ) -> APIRouter:
     _ = submit_review_run, start_workspace_review  # retained for app wiring :-)
     router = APIRouter(prefix="/api/feishu", tags=["feishu"])
@@ -67,12 +98,48 @@ def create_feishu_router(
     @router.post("/events")
     async def handle_feishu_events(request: Request) -> JSONResponse:
         body = await request.body()
+        security_settings = _resolve_event_security_settings(config_store)
         try:
-            verify_feishu_signature(headers=request.headers, body=body)
+            verify_feishu_signature(
+                headers=request.headers, body=body, settings=security_settings
+            )
         except FeishuSignatureVerificationError as exc:
             return _invalid_signature_response(exc)
 
-        payload = json.loads(body.decode("utf-8") or "{}")
+        try:
+            raw_payload = decode_request_body(body)
+        except json.JSONDecodeError:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": {"code": "invalid_feishu_payload", "message": "Invalid JSON body."}},
+            )
+
+        encrypt_key = security_settings.encrypt_key
+        if config_store is not None:
+            encrypt_key = config_store.get("").resolved_encrypt_key() or encrypt_key
+        try:
+            payload = resolve_event_payload(raw_payload, encrypt_key=encrypt_key)
+        except FeishuDecryptError as exc:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": {"code": "invalid_feishu_payload", "message": str(exc)}},
+            )
+
+        if sync_store is not None and config_store is not None and new_id and now:
+            outcome = handle_feishu_event_payload(
+                payload,
+                sync_store=sync_store,
+                config_store=config_store,
+                new_id=new_id,
+                now=now,
+            )
+            if outcome.get("kind") == "challenge":
+                return JSONResponse(
+                    status_code=200,
+                    content={"challenge": outcome["challenge"]},
+                )
+            return JSONResponse(status_code=200, content={"code": 0, "message": "ok", **outcome})
+
         envelope = FeishuEventEnvelope.model_validate(payload)
         if envelope.is_challenge():
             challenge = FeishuChallengeEvent.model_validate(payload)
