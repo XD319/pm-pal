@@ -34,6 +34,15 @@ function getCurrentFeishuContext() {
   return context;
 }
 
+function projectReviewApiPath(runId, suffix = '') {
+  if (typeof window !== 'undefined') {
+    const match = window.location.pathname.match(/^\/projects\/([^/]+)\/reviews\/[^/]+/);
+    if (match) {
+      return `/api/projects/${encodeURIComponent(match[1])}/reviews/${encodeURIComponent(runId)}${suffix}`;
+    }
+  }
+  return appendFeishuContext(`/api/review/${encodeURIComponent(runId)}${suffix}`);
+}
 function appendFeishuContext(path) {
   const context = getCurrentFeishuContext();
   if (!context.open_id && !context.tenant_key && context.embed !== 'feishu') {
@@ -404,3 +413,4 @@ export function fetchProviderCatalog() { return requestJson('/api/provider-catal
 export function listProviderConnections() { return requestJson('/api/provider-connections'); }
 export function createProviderConnection(payload) { return requestJson('/api/provider-connections', { method: 'POST', body: JSON.stringify(payload) }); }
 export function testProviderConnection(connectionId) { return requestJson(`/api/provider-connections/${encodeURIComponent(connectionId)}/test`, { method: 'POST', body: '{}' }); }
+
