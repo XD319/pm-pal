@@ -2,6 +2,9 @@
   if (payload?.detail?.message) {
     return payload.detail.message;
   }
+  if (typeof payload?.detail === 'object' && payload?.detail !== null) {
+    return payload.detail.message || payload.detail.install_hint || fallbackMessage;
+  }
   if (typeof payload?.detail === 'string') {
     return payload.detail;
   }
@@ -388,10 +391,62 @@ export function listProjects() { return requestJson('/api/projects'); }
 export function getProject(projectId) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}`); }
 export function createProject(payload) { return requestJson('/api/projects', { method: 'POST', body: JSON.stringify(payload) }); }
 export function addProjectSource(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources`, { method: 'POST', body: JSON.stringify(payload) }); }
+export function uploadProjectSource(projectId, file, { title = '', parentSourceId = '', isPrd = true } = {}) {
+  const form = new FormData();
+  form.append('file', file);
+  if (title) form.append('title', title);
+  if (parentSourceId) form.append('parent_source_id', parentSourceId);
+  form.append('is_prd', String(isPrd));
+  return fetchWithTimeout(`/api/projects/${encodeURIComponent(projectId)}/sources/upload`, {
+    method: 'POST',
+    headers: { ...feishuContextHeaders() },
+    body: form,
+    timeoutMs: 60000,
+  }).then(async (response) => {
+    const payload = await response.json();
+    if (!response.ok) {
+      const error = new Error(getErrorMessage(payload, `Upload failed with status ${response.status}.`));
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  });
+}
+export function getProjectSource(projectId, sourceId) {
+  return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`);
+}
+export function diffProjectSources(projectId, sourceId, againstId) {
+  const params = new URLSearchParams({ against: againstId });
+  return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/diff?${params}`);
+}
+export function rollbackProjectSource(projectId, sourceId) {
+  return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/rollback`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+export function updateProjectSource(projectId, sourceId, payload) {
+  return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+export function deleteProjectSource(projectId, sourceId) {
+  return requestJson(`/api/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`, {
+    method: 'DELETE',
+  });
+}
 export function createProjectReview(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/reviews`, { method: 'POST', body: JSON.stringify(payload) }); }
 export function getProjectTimeline(projectId) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}/timeline`); }
 export function fetchProviderCatalog() { return requestJson('/api/provider-catalog'); }
 export function listProviderConnections() { return requestJson('/api/provider-connections'); }
 export function createProviderConnection(payload) { return requestJson('/api/provider-connections', { method: 'POST', body: JSON.stringify(payload) }); }
+export function updateProviderConnection(connectionId, payload) { return requestJson(`/api/provider-connections/${encodeURIComponent(connectionId)}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export function deleteProviderConnection(connectionId) { return requestJson(`/api/provider-connections/${encodeURIComponent(connectionId)}`, { method: 'DELETE' }); }
 export function testProviderConnection(connectionId) { return requestJson(`/api/provider-connections/${encodeURIComponent(connectionId)}/test`, { method: 'POST', body: '{}' }); }
+export function listModelPresets() { return requestJson('/api/model-presets'); }
+export function createModelPreset(payload) { return requestJson('/api/model-presets', { method: 'POST', body: JSON.stringify(payload) }); }
+export function updateModelPreset(presetId, payload) { return requestJson(`/api/model-presets/${encodeURIComponent(presetId)}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export function deleteModelPreset(presetId) { return requestJson(`/api/model-presets/${encodeURIComponent(presetId)}`, { method: 'DELETE' }); }
+export function updateProject(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
 

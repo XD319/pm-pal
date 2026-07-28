@@ -11,20 +11,78 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from prd_pal.runtime.llm_provider.generic.base import _SUPPORTED_PROVIDERS
+from prd_pal.service.materials_service import (
+    MAX_UPLOAD_BYTES,
+    create_source_version,
+    diff_sources,
+    get_source_or_404,
+    parse_upload_bytes,
+    public_source,
+    record_event,
+    rollback_source,
+)
 from prd_pal.server.job_state import (
     ClarificationAnswerRequest,
     RevisionConfirmRequest,
     RevisionInputRequest,
     RevisionStageRequest,
 )
+from prd_pal.server.provider_probe import package_pip_name, probe_provider_connection
+from prd_pal.utils.redaction import is_sensitive_key, redact_mapping
 
 LOCAL_PROVIDER = "ollama"
 PROVIDER_PACKAGES = {"openai": "langchain_openai", "deepseek": "langchain_openai", "azure_openai": "langchain_openai", "ollama": "langchain_ollama", "anthropic": "langchain_anthropic", "groq": "langchain_groq", "google_genai": "langchain_google_genai", "google_vertexai": "langchain_google_vertexai", "bedrock": "langchain_aws", "cohere": "langchain_cohere", "mistralai": "langchain_mistralai", "fireworks": "langchain_fireworks", "huggingface": "langchain_huggingface", "gigachat": "langchain_gigachat", "netmind": "langchain_netmind"}
+
+def _catalog_field(name: str, label: str, *, field_type: str = "text", storage: str = "extra", required: bool = False) -> dict[str, Any]:
+    return {"name": name, "label": label, "type": field_type, "storage": storage, "required": required}
+
+PROVIDER_EXTRA_FIELDS: dict[str, list[dict[str, Any]]] = {
+    "azure_openai": [
+        _catalog_field("region", "Region"),
+        _catalog_field("deployment", "Deployment"),
+        _catalog_field("api_version", "API Version"),
+    ],
+    "google_vertexai": [
+        _catalog_field("project", "GCP Project"),
+        _catalog_field("location", "Location"),
+    ],
+    "bedrock": [
+        _catalog_field("region", "AWS Region"),
+    ],
+}
+
+def _provider_catalog_entry(provider: str) -> dict[str, Any]:
+    package = PROVIDER_PACKAGES.get(provider, "langchain_community")
+    fields: list[dict[str, Any]] = []
+    if provider not in {LOCAL_PROVIDER, "bedrock", "google_vertexai"}:
+        fields.append(_catalog_field("api_key", "API Key", field_type="secret", storage="api_key", required=True))
+    fields.append(_catalog_field("base_url", "Base URL", storage="base_url"))
+    fields.extend(PROVIDER_EXTRA_FIELDS.get(provider, []))
+    return {
+        "id": provider,
+        "label": provider.replace("_", " ").title(),
+        "requires_api_key": provider not in {LOCAL_PROVIDER, "bedrock", "google_vertexai"},
+        "requires_package": package,
+        "install_hint": f"pip install -U {package_pip_name(package)}",
+        "available": importlib.util.find_spec(package) is not None,
+        "fields": fields,
+    }
+
+def _public_extra(extra: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in extra.items() if not is_sensitive_key(str(key))}
+
+def _connection_llm_kwargs(conn: dict[str, Any], secret: str) -> dict[str, Any]:
+    llm_kwargs = {key: value for key, value in json.loads(conn.get("extra_json") or "{}").items() if value not in (None, "")}
+    if secret:
+        llm_kwargs["api_key"] = secret
+    if conn.get("base_url"):
+        llm_kwargs["base_url"] = conn["base_url"]
+    return llm_kwargs
 
 def now() -> str: return datetime.now(timezone.utc).isoformat()
 def new_id(kind: str) -> str: return f"{kind}_{uuid.uuid4().hex[:12]}"
@@ -43,10 +101,15 @@ class SourceCreate(BaseModel):
     content: str = ""
     source_url: str = ""
     is_prd: bool = True
+    parent_source_id: str | None = None
     @model_validator(mode="after")
     def input_present(self):
         if not self.content.strip() and not self.source_url.strip(): raise ValueError("Provide source content or a source URL.")
         return self
+class SourceUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    source_url: str | None = None
+    is_prd: bool | None = None
 class ProjectReview(BaseModel):
     source_id: str | None = None
     mode: str = "quick"
@@ -76,13 +139,23 @@ class Store:
     def __init__(self, path: Path): self.path = path
     def initialize(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as c: c.executescript("""
+        with sqlite3.connect(self.path) as c:
+            c.executescript("""
 CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY,name TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',model_preset_id TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS project_sources (id TEXT PRIMARY KEY,project_id TEXT NOT NULL,title TEXT NOT NULL,source_type TEXT NOT NULL,content TEXT NOT NULL DEFAULT '',source_url TEXT NOT NULL DEFAULT '',is_prd INTEGER NOT NULL,version INTEGER NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS project_sources (id TEXT PRIMARY KEY,project_id TEXT NOT NULL,title TEXT NOT NULL,source_type TEXT NOT NULL,content TEXT NOT NULL DEFAULT '',source_url TEXT NOT NULL DEFAULT '',is_prd INTEGER NOT NULL,version INTEGER NOT NULL,created_at TEXT NOT NULL,parent_source_id TEXT,checksum TEXT NOT NULL DEFAULT '',metadata_json TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS project_runs (project_id TEXT NOT NULL,run_id TEXT PRIMARY KEY,source_id TEXT,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS project_events (id TEXT PRIMARY KEY,project_id TEXT NOT NULL,kind TEXT NOT NULL,label TEXT NOT NULL,source_id TEXT,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS provider_connections (id TEXT PRIMARY KEY,name TEXT NOT NULL,provider TEXT NOT NULL,base_url TEXT NOT NULL DEFAULT '',extra_json TEXT NOT NULL DEFAULT '{}',secret_encrypted TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'configured',created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS model_presets (id TEXT PRIMARY KEY,name TEXT NOT NULL,connection_id TEXT NOT NULL,fast_model TEXT NOT NULL,smart_model TEXT NOT NULL,strategic_model TEXT NOT NULL,temperature REAL NOT NULL,reasoning_effort TEXT NOT NULL,is_default INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 """)
+            cols = {row[1] for row in c.execute("PRAGMA table_info(project_sources)").fetchall()}
+            if "parent_source_id" not in cols:
+                c.execute("ALTER TABLE project_sources ADD COLUMN parent_source_id TEXT")
+            if "checksum" not in cols:
+                c.execute("ALTER TABLE project_sources ADD COLUMN checksum TEXT NOT NULL DEFAULT ''")
+            if "metadata_json" not in cols:
+                c.execute("ALTER TABLE project_sources ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'")
+            c.commit()
     def rows(self, q, p=()):
         with sqlite3.connect(self.path) as c:
             c.row_factory = sqlite3.Row
@@ -123,17 +196,28 @@ def create_project_space_router(
     store, secrets = Store(db_path), SecretBox(); store.initialize()
     router = APIRouter(prefix="/api", tags=["project-space"])
     def public_connection(row):
-        row["has_api_key"] = bool(row.pop("secret_encrypted", "")); row["api_key_masked"] = "••••••••" if row["has_api_key"] else ""; row["extra"] = json.loads(row.pop("extra_json", "{}")); return row
+        row = dict(row)
+        row["has_api_key"] = bool(row.pop("secret_encrypted", ""))
+        row["api_key_masked"] = "••••••••" if row["has_api_key"] else ""
+        row["extra"] = _public_extra(json.loads(row.pop("extra_json", "{}")))
+        return row
     def get_project(project_id):
         rows = store.rows("SELECT * FROM projects WHERE id=?", (project_id,))
         if not rows: raise HTTPException(404, detail="Project not found")
         item = rows[0]
-        item["sources"] = store.rows("SELECT id,title,source_type,source_url,is_prd,version,created_at FROM project_sources WHERE project_id=? ORDER BY created_at DESC", (project_id,))
+        item["sources"] = [
+            public_source(row)
+            for row in store.rows(
+                "SELECT id,title,source_type,source_url,is_prd,version,created_at,parent_source_id,checksum,metadata_json "
+                "FROM project_sources WHERE project_id=? ORDER BY created_at DESC",
+                (project_id,),
+            )
+        ]
         item["runs"] = store.rows("SELECT run_id,source_id,created_at FROM project_runs WHERE project_id=? ORDER BY created_at DESC", (project_id,))
         return item
     @router.get("/provider-catalog")
     async def provider_catalog():
-        return {"providers": [{"id": p, "label": p.replace("_", " ").title(), "requires_api_key": p != LOCAL_PROVIDER, "requires_package": PROVIDER_PACKAGES.get(p, "langchain-community"), "available": importlib.util.find_spec(PROVIDER_PACKAGES.get(p, "langchain_community")) is not None, "fields": ["api_key", "base_url"] if p not in {"ollama", "bedrock", "google_vertexai"} else ["base_url"]} for p in sorted(_SUPPORTED_PROVIDERS)]}
+        return {"providers": [_provider_catalog_entry(p) for p in sorted(_SUPPORTED_PROVIDERS)]}
     @router.get("/provider-connections")
     async def list_connections(): return {"connections": [public_connection(x) for x in store.rows("SELECT * FROM provider_connections ORDER BY updated_at DESC")], "master_key_configured": secrets.box is not None}
     @router.post("/provider-connections")
@@ -155,12 +239,39 @@ def create_project_space_router(
     @router.post("/provider-connections/{connection_id}/test")
     async def test_connection(connection_id: str):
         rows = store.rows("SELECT * FROM provider_connections WHERE id=?", (connection_id,))
-        if not rows: raise HTTPException(404, detail="Provider connection not found")
-        item = rows[0]; package = PROVIDER_PACKAGES.get(item["provider"], "langchain_community")
-        if importlib.util.find_spec(package) is None: raise HTTPException(409, detail=f"Install dependency: pip install -U {package.replace('_', '-')}")
-        if item["provider"] != LOCAL_PROVIDER: secrets.decrypt(item["secret_encrypted"])
+        if not rows:
+            raise HTTPException(404, detail="Provider connection not found")
+        item = rows[0]
+        package = PROVIDER_PACKAGES.get(item["provider"], "langchain_community")
+        if importlib.util.find_spec(package) is None:
+            pip_name = package_pip_name(package)
+            raise HTTPException(
+                409,
+                detail={
+                    "message": f"Install dependency: pip install -U {pip_name}",
+                    "requires_package": package,
+                    "install_hint": f"pip install -U {pip_name}",
+                },
+            )
+        secret = ""
+        if item["provider"] != LOCAL_PROVIDER:
+            secret = secrets.decrypt(item["secret_encrypted"])
+        extra = json.loads(item.get("extra_json") or "{}")
+        try:
+            probe_result = probe_provider_connection(
+                item["provider"],
+                api_key=secret,
+                base_url=item.get("base_url") or "",
+                extra=extra,
+            )
+        except Exception as exc:
+            raise HTTPException(502, detail=f"Connection probe failed: {exc}") from exc
         store.execute("UPDATE provider_connections SET status=?,updated_at=? WHERE id=?", ("validated", now(), connection_id))
-        return {"ok": True, "status": "validated", "message": "Credentials and local dependency are configured. No billable model request was made."}
+        return {
+            "ok": True,
+            "status": "validated",
+            "message": probe_result.get("message") or "Connection validated.",
+        }
     @router.get("/model-presets")
     async def list_presets(): return {"presets": store.rows("SELECT * FROM model_presets ORDER BY is_default DESC,updated_at DESC")}
     def save_preset(preset_id, p):
@@ -187,11 +298,120 @@ def create_project_space_router(
         old = get_project(project_id); store.execute("UPDATE projects SET name=?,description=?,model_preset_id=?,updated_at=? WHERE id=?", (p.name.strip() if p.name is not None else old["name"], p.description.strip() if p.description is not None else old["description"], p.model_preset_id if p.model_preset_id is not None else old["model_preset_id"], now(), project_id)); return get_project(project_id)
     @router.post("/projects/{project_id}/sources")
     async def add_source(project_id: str, p: SourceCreate):
-        get_project(project_id); source_id, stamp = new_id("source"), now(); version = len(store.rows("SELECT id FROM project_sources WHERE project_id=? AND title=?", (project_id, p.title))) + 1
-        store.execute("INSERT INTO project_sources VALUES (?,?,?,?,?,?,?,?,?)", (source_id, project_id, p.title, p.source_type, p.content, p.source_url, int(p.is_prd), version, stamp)); store.execute("UPDATE projects SET updated_at=? WHERE id=?", (stamp, project_id)); return {"id": source_id, "version": version}
+        get_project(project_id)
+        return create_source_version(
+            store,
+            project_id=project_id,
+            title=p.title.strip(),
+            source_type=p.source_type,
+            content=p.content,
+            source_url=p.source_url.strip(),
+            is_prd=p.is_prd,
+            parent_source_id=p.parent_source_id,
+            metadata_extra={"origin": "manual"},
+            new_id=new_id,
+            now=now,
+        )
+
+    @router.post("/projects/{project_id}/sources/upload")
+    async def upload_source(
+        project_id: str,
+        file: UploadFile = File(...),
+        title: str = Form(""),
+        parent_source_id: str | None = Form(None),
+        is_prd: bool = Form(True),
+    ):
+        get_project(project_id)
+        filename = (file.filename or "upload.txt").strip()
+        raw = await file.read()
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.")
+        content, mime_type = parse_upload_bytes(filename, raw)
+        resolved_title = title.strip() or Path(filename).stem
+        return create_source_version(
+            store,
+            project_id=project_id,
+            title=resolved_title,
+            source_type="upload",
+            content=content,
+            source_url="",
+            is_prd=is_prd,
+            parent_source_id=parent_source_id or None,
+            metadata_extra={"origin": "upload", "filename": filename, "mime_type": mime_type},
+            new_id=new_id,
+            now=now,
+            event_kind="source_uploaded",
+        )
+
+    @router.get("/projects/{project_id}/sources/{source_id}")
+    async def get_source(project_id: str, source_id: str):
+        get_project(project_id)
+        return public_source(get_source_or_404(store, project_id, source_id))
+
+    @router.get("/projects/{project_id}/sources/{source_id}/diff")
+    async def source_diff(project_id: str, source_id: str, against: str = Query(...)):
+        get_project(project_id)
+        return diff_sources(store, project_id, source_id, against)
+
+    @router.post("/projects/{project_id}/sources/{source_id}/rollback")
+    async def source_rollback(project_id: str, source_id: str):
+        get_project(project_id)
+        return rollback_source(store, project_id=project_id, source_id=source_id, new_id=new_id, now=now)
+
+    @router.patch("/projects/{project_id}/sources/{source_id}")
+    async def update_source(project_id: str, source_id: str, p: SourceUpdate):
+        get_project(project_id)
+        old = get_source_or_404(store, project_id, source_id)
+        stamp = now()
+        store.execute(
+            "UPDATE project_sources SET title=?,source_url=?,is_prd=? WHERE id=?",
+            (
+                p.title.strip() if p.title is not None else old["title"],
+                p.source_url.strip() if p.source_url is not None else old["source_url"],
+                int(p.is_prd if p.is_prd is not None else old["is_prd"]),
+                source_id,
+            ),
+        )
+        record_event(
+            store,
+            project_id=project_id,
+            kind="source_updated",
+            label=f"{p.title or old['title']} v{old['version']}",
+            source_id=source_id,
+            new_id=new_id,
+            now=now,
+        )
+        store.execute("UPDATE projects SET updated_at=? WHERE id=?", (stamp, project_id))
+        return public_source(get_source_or_404(store, project_id, source_id))
+
+    @router.delete("/projects/{project_id}/sources/{source_id}")
+    async def delete_source(project_id: str, source_id: str):
+        get_project(project_id)
+        old = get_source_or_404(store, project_id, source_id)
+        store.execute("DELETE FROM project_sources WHERE id=? AND project_id=?", (source_id, project_id))
+        record_event(
+            store,
+            project_id=project_id,
+            kind="source_deleted",
+            label=f"{old['title']} v{old['version']}",
+            source_id=source_id,
+            new_id=new_id,
+            now=now,
+        )
+        store.execute("UPDATE projects SET updated_at=? WHERE id=?", (now(), project_id))
+        return {"deleted": True, "id": source_id}
+
     @router.get("/projects/{project_id}/timeline")
     async def timeline(project_id: str):
-        get_project(project_id); return {"events": store.rows("SELECT created_at,'source' kind,title label FROM project_sources WHERE project_id=? UNION ALL SELECT created_at,'review' kind,run_id label FROM project_runs WHERE project_id=? ORDER BY created_at DESC", (project_id, project_id))}
+        get_project(project_id)
+        return {
+            "events": store.rows(
+                "SELECT created_at,kind,label,source_id FROM project_events WHERE project_id=? "
+                "UNION ALL SELECT created_at,'review' kind,run_id label,NULL source_id FROM project_runs WHERE project_id=? "
+                "ORDER BY created_at DESC",
+                (project_id, project_id),
+            )
+        }
     @router.post("/projects/{project_id}/reviews")
     async def review(project_id: str, p: ProjectReview):
         item = get_project(project_id); source_id = p.source_id or (item["sources"][0]["id"] if item["sources"] else ""); rows = store.rows("SELECT * FROM project_sources WHERE id=? AND project_id=?", (source_id, project_id))
@@ -202,12 +422,10 @@ def create_project_space_router(
             if not presets: raise HTTPException(400, detail="Selected model preset not found")
             preset = presets[0]; conn = store.rows("SELECT * FROM provider_connections WHERE id=?", (preset["connection_id"],))[0]
             options = {"fast_llm": f"{conn['provider']}:{preset['fast_model']}", "smart_llm": f"{conn['provider']}:{preset['smart_model']}", "strategic_llm": f"{conn['provider']}:{preset['strategic_model']}", "temperature": preset["temperature"], "reasoning_effort": preset["reasoning_effort"]}
-            secret = secrets.decrypt(conn["secret_encrypted"])
-            if secret:
-                options["llm_kwargs"] = {"api_key": secret}
-            if conn["base_url"]:
-                options.setdefault("llm_kwargs", {})["base_url"] = conn["base_url"]
-        result = await enqueue_review(prd_text=source["content"] or None, source=source["source_url"] or None, mode=p.mode, llm_options=options, audit_context={"source": "project_space", "actor": "local", "client_metadata": {"project_id": project_id, "source_id": source_id, "model_preset_id": preset_id or ""}})
+            llm_kwargs = _connection_llm_kwargs(conn, secrets.decrypt(conn["secret_encrypted"]))
+            if llm_kwargs:
+                options["llm_kwargs"] = llm_kwargs
+        result = await enqueue_review(prd_text=source["content"] or None, source=source["source_url"] or None, mode=p.mode, llm_options=options, audit_context={"source": "project_space", "actor": "local", "client_metadata": redact_mapping({"project_id": project_id, "source_id": source_id, "model_preset_id": preset_id or ""})})
         store.execute("INSERT INTO project_runs VALUES (?,?,?,?)", (project_id, result["run_id"], source_id, now())); store.execute("UPDATE projects SET updated_at=? WHERE id=?", (now(), project_id)); return result | {"project_id": project_id}
     def ensure_project_run(project_id: str, run_id: str) -> None:
         get_project(project_id)
