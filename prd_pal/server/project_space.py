@@ -1,4 +1,4 @@
-"""Local-first project and provider APIs for the open-source workspace."""
+﻿"""Local-first project and provider APIs for the open-source workspace."""
 from __future__ import annotations
 
 import importlib.util
@@ -97,7 +97,7 @@ class SecretBox:
         try: return self.box.decrypt(token.encode()).decode()
         except InvalidToken as exc: raise HTTPException(503, detail="Provider secret cannot be decrypted with this master key.") from exc
 
-def create_project_space_router(*, db_path: Path, enqueue_review: Callable[..., Awaitable[dict[str, Any]]]) -> APIRouter:
+def create_project_space_router(*, db_path: Path, enqueue_review: Callable[..., Awaitable[dict[str, Any]]], get_run_status: Callable[[str], Awaitable[dict[str, Any]]] | None = None, get_run_result: Callable[[str], Awaitable[dict[str, Any]]] | None = None) -> APIRouter:
     store, secrets = Store(db_path), SecretBox(); store.initialize()
     router = APIRouter(prefix="/api", tags=["project-space"])
     def public_connection(row):
@@ -187,4 +187,23 @@ def create_project_space_router(*, db_path: Path, enqueue_review: Callable[..., 
                 options.setdefault("llm_kwargs", {})["base_url"] = conn["base_url"]
         result = await enqueue_review(prd_text=source["content"] or None, source=source["source_url"] or None, mode=p.mode, llm_options=options, audit_context={"source": "project_space", "actor": "local", "client_metadata": {"project_id": project_id, "source_id": source_id, "model_preset_id": preset_id or ""}})
         store.execute("INSERT INTO project_runs VALUES (?,?,?,?)", (project_id, result["run_id"], source_id, now())); store.execute("UPDATE projects SET updated_at=? WHERE id=?", (now(), project_id)); return result | {"project_id": project_id}
+    def ensure_project_run(project_id: str, run_id: str) -> None:
+        get_project(project_id)
+        if not store.rows("SELECT run_id FROM project_runs WHERE project_id=? AND run_id=?", (project_id, run_id)):
+            raise HTTPException(404, detail="Review run is not part of this project")
+
+    @router.get("/projects/{project_id}/reviews/{run_id}")
+    async def project_review_status(project_id: str, run_id: str):
+        ensure_project_run(project_id, run_id)
+        if get_run_status is None:
+            raise HTTPException(503, detail="Review status service is unavailable")
+        return await get_run_status(run_id)
+
+    @router.get("/projects/{project_id}/reviews/{run_id}/result")
+    async def project_review_result(project_id: str, run_id: str):
+        ensure_project_run(project_id, run_id)
+        if get_run_result is None:
+            raise HTTPException(503, detail="Review result service is unavailable")
+        return await get_run_result(run_id)
     return router
+

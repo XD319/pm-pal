@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import sqlite3
@@ -1731,7 +1731,12 @@ app.include_router(
 )
 app.include_router(create_pm_router())
 app.include_router(
-    create_project_space_router(db_path=PROJECT_SPACE_DB_PATH, enqueue_review=_enqueue_review_run)
+    create_project_space_router(
+        db_path=PROJECT_SPACE_DB_PATH,
+        enqueue_review=_enqueue_review_run,
+        get_run_status=lambda run_id: get_review_status(run_id),
+        get_run_result=lambda run_id: get_review_result(run_id),
+    )
 )
 app.include_router(
     create_product_decision_router(
@@ -1746,3 +1751,4 @@ if FRONTEND_DIST_ROOT.exists():
     app.mount(
         "/", StaticFiles(directory=FRONTEND_DIST_ROOT, html=True), name="frontend"
     )
+
