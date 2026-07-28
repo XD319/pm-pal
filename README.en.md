@@ -10,24 +10,22 @@
 ![Feishu](https://img.shields.io/badge/Feishu-Integrated-3370FF)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)
 
-`prd-pal` is a PRD and requirement review service with a **Feishu-first** product entry. End users can submit reviews, read H5 results, answer clarifications, and continue follow-up actions directly inside Feishu.
+`prd-pal` is a PRD and requirement review service organized around **project space**: create projects, attach sources, start reviews, and inspect run history. Feishu remains the primary end-user entry; Web and CLI are retained for trial, integration, and development.
 
-Web and CLI are fully retained as trial and engineering entry points.
+## What Project Space Delivers
 
-## What Feishu Entry Delivers
+1. Create projects and configure model connections
+2. Add PRD sources (text, files, Feishu/Notion/GitHub/URL links)
+3. Start reviews from project sources (`POST /api/projects/{project_id}/reviews`)
+4. View run status, results, reports, and follow-up actions inside the project
+5. Sync external document changes through connector webhooks
 
-1. Start PRD review from Feishu
-2. Open embedded H5 result pages in Feishu
-3. Answer clarification questions in-page
-4. Continue next-step delivery actions after updates
+## 30-Second Start
 
-## 30-Second Start (Feishu-first)
-
-1. Complete admin setup in [docs/feishu-setup.md](./docs/feishu-setup.md)
-2. Open Feishu entry page: `https://<your-domain>/feishu`
-3. Submit PRD source/text and get a run
-4. Open result page in Feishu: `/run/<run_id>?embed=feishu&open_id=<open_id>&tenant_key=<tenant_key>`
-5. Answer clarification prompts and continue to next delivery actions
+1. Follow [docs/quick-start.md](./docs/quick-start.md) to start locally
+2. Open the web home page, create a project, and add a sample PRD source
+3. Start a review from the project page and open the result view
+4. Optionally wire Feishu using [docs/feishu-setup.md](./docs/feishu-setup.md)
 
 ## Requirements
 
@@ -35,18 +33,33 @@ Web and CLI are fully retained as trial and engineering entry points.
 - Node.js `22+`
 - A valid model API key
 
-## Feishu Docs First
+## Connectors Overview
 
-- Admin / deployer setup:
+| Connector | Purpose | Realtime callback |
+|-----------|---------|-------------------|
+| Feishu | Feishu docs, events, submit | `POST /api/feishu/events`, `/api/feishu/submit` |
+| Notion | Notion page ingestion | `POST /api/notion/events` |
+| GitHub | README, issues, PRs | `POST /api/github/events` |
+| URL | Public web pages | — |
+| Local file | Local file paths | — |
+
+See [docs/callback-config.md](./docs/callback-config.md) for webhook and signature setup.
+
+## Recommended Reading
+
+- Project space and review APIs:
+  - [docs/project-space.md](./docs/project-space.md)
+  - [docs/v2-api.md](./docs/v2-api.md)
+- Quick start:
+  - [docs/quick-start.md](./docs/quick-start.md)
+- Feishu rollout:
   - [docs/feishu-setup.md](./docs/feishu-setup.md)
-- End-user guide:
   - [docs/feishu-user-guide.md](./docs/feishu-user-guide.md)
-- Feishu main-entry interaction plan:
-  - [docs/feishu-main-entry-mvp.md](./docs/feishu-main-entry-mvp.md)
-- Demo material playbook:
-  - [docs/feishu-demo-assets.md](./docs/feishu-demo-assets.md)
+- Deployment and callbacks:
+  - [docs/deployment-guide.md](./docs/deployment-guide.md)
+  - [docs/callback-config.md](./docs/callback-config.md)
 
-## Local Quick Start (trial/development)
+## Local Quick Start
 
 ### 1. Clone
 
@@ -70,46 +83,19 @@ FAST_LLM=openai:gpt-5-nano
 STRATEGIC_LLM=openai:gpt-5-nano
 ```
 
-You do not need Feishu, Notion, auth, or rate-limit settings for the first local run.
-
 ### 3. Install dependencies
-
-Backend:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e .
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-cd ..
+cd frontend && npm install && cd ..
 ```
 
 ### 4. Start services
 
-Recommended on Windows:
-
 ```bash
 start-dev.cmd
-```
-
-Or PowerShell:
-
-```powershell
-.\start-dev.ps1
-```
-
-Manual startup:
-
-```bash
-python main.py
-cd frontend
-npm run dev
 ```
 
 Default addresses:
@@ -121,10 +107,9 @@ Default addresses:
 
 ### 5. Validate the local flow
 
-1. Open `http://127.0.0.1:5173`
-2. Click `Load sample`
-3. Submit one review
-4. Confirm the result page shows progress, summary, and report downloads
+1. Create a project on the home page
+2. Add a sample PRD source and start a review
+3. Confirm the result page shows progress, summary, and report downloads
 
 CLI alternative:
 
@@ -134,13 +119,11 @@ prd-pal review --input docs/sample_prd.md
 
 ## Docker
 
-To bring up the backend and production frontend bundle quickly:
-
 ```bash
 docker-compose up --build
 ```
 
-To run the Vite frontend in dev mode:
+Dev-mode frontend:
 
 ```bash
 docker-compose --profile dev up dev
@@ -148,85 +131,42 @@ docker-compose --profile dev up dev
 
 ## Common Entry Points
 
-### Feishu (primary entry)
+### Web (project space)
 
-- Feishu work entry:
-  - `https://<your-domain>/feishu`
-- Feishu H5 result URL template:
-  - `https://<your-domain>/run/<run_id>?embed=feishu&open_id=<open_id>&tenant_key=<tenant_key>`
+- Home: `http://127.0.0.1:5173/`
+- Review API prefix: `/api/projects/{project_id}/reviews`
 
-### Web (trial/development)
+### Feishu (primary user entry)
 
-- Home:
-  - `http://127.0.0.1:5173/`
-### CLI (trial/development)
+- Work entry: `https://<your-domain>/feishu`
+- H5 result URL: `/run/<run_id>?embed=feishu&open_id=<open_id>&tenant_key=<tenant_key>`
+
+### CLI / MCP
 
 ```bash
 prd-pal review --input docs/sample_prd.md
-prd-pal prepare-handoff --run-id 20260309T000000Z --agent all --json
-prd-pal report --run-id 20260309T000000Z --format md
-```
-
-### FastAPI
-
-- `POST /api/review`
-- `GET /api/review/{run_id}`
-- `GET /api/review/{run_id}/result`
-- `GET /api/report/{run_id}?format=md|json|html|csv`
-- `POST /api/feishu/events`
-- `POST /api/feishu/submit`
-- `POST /api/feishu/clarification`
-
-### MCP
-
-```bash
 python -m prd_pal.mcp_server.server
 ```
 
-Core tools:
+### Primary HTTP APIs (project-scoped)
 
-- `ping`
-- `review_requirement`
-- `review_prd`
-- `get_report`
-- `answer_review_clarification`
-- `prepare_agent_handoff`
+- `POST /api/projects/{project_id}/reviews` — start a review
+- `GET /api/projects/{project_id}/reviews/{run_id}` — poll status
+- `GET /api/projects/{project_id}/reviews/{run_id}/result` — structured result
+- `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv` — download report
+
+Global `/api/review` routes were removed in Phase 2. See [docs/v2-api.md](./docs/v2-api.md).
 
 ## Outputs
 
-Each run writes artifacts under `outputs/<run_id>/`.
+Each run writes artifacts under `outputs/<run_id>/`:
 
-Stable outputs:
-
-- `report.md`
-- `report.json`
-- `run_trace.json`
-
-Common parallel-review outputs:
-
-- `review_report.json`
-- `risk_items.json`
-- `open_questions.json`
-- `review_summary.md`
-
-Feishu-origin runs also persist:
-
-- `entry_context.json`
-- `audit_log.jsonl`
-
-## Recommended Reading
-
-- [docs/quick-start.md](./docs/quick-start.md)
-- [docs/feishu-setup.md](./docs/feishu-setup.md)
-- [docs/feishu-user-guide.md](./docs/feishu-user-guide.md)
-- [docs/feishu-demo-assets.md](./docs/feishu-demo-assets.md)
-- [docs/v2-api.md](./docs/v2-api.md)
-- [docs/mcp.md](./docs/mcp.md)
-- [docs/deployment-guide.md](./docs/deployment-guide.md)
+- `report.md`, `report.json`, `run_trace.json`
+- parallel review path may also include `review_report.json`, `risk_items.json`, `open_questions.json`, `review_summary.md`
 
 ## Validation
 
 ```bash
 pytest -q
-python eval/run_eval.py
+cd frontend && npm test -- --run && npm run build
 ```

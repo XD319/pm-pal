@@ -65,3 +65,6 @@ CURSOR_RULES.md
 # Eval run outputs
 eval/eval_report.json
 eval/runs/
+
+# Local SQLite databases
+data/*.sqlite3

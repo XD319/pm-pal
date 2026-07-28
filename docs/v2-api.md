@@ -235,7 +235,7 @@ Request body accepts:
 - `user_id`
 - `tenant_key`
 - `metadata`
-- Optional LLM override fields already supported by `POST /api/review`
+- Optional LLM override fields supported by the project-scoped review API
 
 Behavior notes:
 
@@ -298,109 +298,31 @@ Typical response:
 }
 ```
 
-### `GET /api/runs`
+---
 
-List recent review runs discovered under `outputs/`.
+## Project-Scoped Review Access (Feishu context)
 
-This endpoint is file-based and lightweight: it scans run directories and reports artifact presence without eagerly parsing large review payloads.
+For Feishu-origin runs linked to a project, project-scoped review routes guard access using persisted entry context. Provide matching `open_id` and `tenant_key` as query parameters or headers:
 
-Example:
+- Query parameters: `?open_id=<open_id>&tenant_key=<tenant_key>`
+- Headers: `X-Feishu-Open-Id`, `X-Feishu-Tenant-Key`
 
-```bash
-curl -H "X-API-Key: local-dev-secret" "http://127.0.0.1:8000/api/runs"
-```
+Applies to:
 
-Typical response:
+- `GET /api/projects/{project_id}/reviews/{run_id}`
+- `GET /api/projects/{project_id}/reviews/{run_id}/result`
+- `GET /api/projects/{project_id}/reviews/{run_id}/report`
+- clarification, revision, roadmap, artifact preview, and SSE progress routes under the same prefix
 
-```json
-{
-  "count": 2,
-  "runs": [
-    {
-      "run_id": "20260309T030405Z",
-      "status": "completed",
-      "created_at": "2026-03-09T03:04:05+00:00",
-      "updated_at": "2026-03-09T03:05:12+00:00",
-      "artifact_presence": {
-        "report_md": true,
-        "report_json": true,
-        "run_trace": true,
-        "review_report_json": true,
-        "risk_items_json": true,
-        "open_questions_json": true,
-        "review_summary_md": true
-      }
-    }
-  ]
-}
-```
+The backend does not use `Referer` as an identity source. Missing or mismatched context returns controlled `403` responses such as `feishu_context_required` or `run_access_denied`.
 
-Each run includes:
-
-- `run_id`
-- `status`
-- `created_at`
-- `updated_at`
-- `artifact_presence`
-
-### `GET /api/review/{run_id}`
-
-Fetch job status and node progress.
-
-Example:
+Resolve the owning project for a legacy `/run/{run_id}` link with:
 
 ```bash
-curl -H "X-API-Key: local-dev-secret" "http://127.0.0.1:8000/api/review/20260309T000000Z"
+curl -H "X-API-Key: local-dev-secret" "http://127.0.0.1:8000/api/projects/by-run/{run_id}"
 ```
 
-Typical response fields:
-
-- `status`
-- `progress.percent`
-- `progress.current_node`
-- `progress.nodes`
-- `report_paths`
-- `error` when the run has failed with a controlled connector or processing error
-
-For failed Feishu connector runs, the response keeps `status: failed` and includes a structured error such as `AUTHENTICATION_FAILED`, `PERMISSION_DENIED`, `DOCUMENT_NOT_FOUND`, or `UNSUPPORTED_DOCUMENT_TYPE`.
-
-### `GET /api/review/{run_id}/result`
-
-Fetch the parsed result payload and stable artifact paths for a completed run.
-
-If the run is still in progress, the endpoint returns `409` with `detail.code = result_not_ready`. If the run failed before writing `report.json`, the endpoint returns `409` with the controlled failure code and message so connector failures remain visible to API clients.
-
-For Feishu-origin runs, access is guarded by the persisted entry context in `outputs/<run_id>/entry_context.json`. Provide matching `open_id` and `tenant_key` as query parameters or headers when opening the result page or calling protected APIs:
-
-- Query parameters:
-  - `?open_id=<open_id>&tenant_key=<tenant_key>`
-- Headers:
-  - `X-Feishu-Open-Id: <open_id>`
-  - `X-Feishu-Tenant-Key: <tenant_key>`
-
-This same explicit context applies to run status, result, report download, artifact preview, clarification, revision, roadmap, and SSE progress APIs. The backend does not use `Referer` as an identity source.
-
-If the context is missing or does not match, the API returns controlled `403` responses such as:
-
-- `detail.code = feishu_context_required`
-- `detail.code = run_access_denied`
-
-### `GET /api/report/{run_id}?format=md|json`
-
-Download the main report artifact.
-
-Examples:
-
-```bash
-curl -H "X-API-Key: local-dev-secret" "http://127.0.0.1:8000/api/report/20260309T000000Z?format=md"
-curl -H "X-API-Key: local-dev-secret" "http://127.0.0.1:8000/api/report/20260309T000000Z?format=json"
-```
-
-For Feishu-origin runs, include the same explicit Feishu context:
-
-```bash
-curl "http://127.0.0.1:8000/api/report/20260309T000000Z?format=md&embed=feishu&open_id=ou_xxx&tenant_key=tenant_xxx"
-```
+---
 
 ## Primary Output Interpretation
 
@@ -420,6 +342,16 @@ When the multi-reviewer path is selected, the run may also include:
 The current service implementation may also write retained extension artifacts in the same directory. That does not change the API's review-first positioning.
 
 When a review is created from `source`, connector metadata is preserved in run artifacts where supported. In particular, `report.json`, `run_trace.json`, and `delivery_bundle.json` retain `source_metadata` for downstream inspection.
+
+## Connector Callback Endpoints
+
+Realtime connector sync and Feishu ingress routes:
+
+- `POST /api/feishu/events` — challenge and event subscription
+- `POST /api/notion/events` — Notion webhook verification and sync
+- `POST /api/github/events` — GitHub App/repository webhook delivery
+
+Configuration details: [callback-config.md](./callback-config.md).
 
 ## Supporting Governance Endpoints
 

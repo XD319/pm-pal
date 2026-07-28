@@ -29,3 +29,13 @@ The `/run/{run_id}` frontend path still works via redirect to the linked project
 Secrets are encrypted in `data/project_space.sqlite3`, are never returned by the API, and must not be committed to Git. The current instance owner pays their provider directly. Ollama can be configured without an API key.
 
 Provider entries are shown even when their optional Python package is absent; the UI will state the package to install before validation.
+
+## Connectors and realtime sync
+
+Supported source connectors: Feishu, Notion, GitHub, URL, local file. Webhook callbacks sync external changes into project sources:
+
+- Feishu: `/api/feishu/events`, `/api/feishu/submit`
+- Notion: `/api/notion/events`
+- GitHub: `/api/github/events`
+
+See [callback-config.md](./callback-config.md) for signature and encrypt settings.

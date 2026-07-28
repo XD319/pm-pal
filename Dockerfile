@@ -18,8 +18,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY prd_pal/ ./prd_pal/
-COPY requirement_review_v1/ ./requirement_review_v1/
-COPY review_runtime/ ./review_runtime/
 COPY README.md LICENSE NOTICE pyproject.toml main.py ./
 RUN pip install --no-cache-dir .
 

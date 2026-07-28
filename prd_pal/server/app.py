@@ -1080,7 +1080,7 @@ def healthcheck() -> dict[str, Any]:
     return {
         "ok": True,
         "status": "healthy",
-        "service": "requirement-review-v1",
+        "service": "prd-pal",
         "decision_workspace": {
             "evidence_sync_scheduler": bool(scheduler is not None),
             "db_path": str(PRODUCT_DECISION_DB_PATH),
@@ -1103,7 +1103,7 @@ def readiness_check() -> JSONResponse:
     payload = {
         "ok": ready,
         "status": "ready" if ready else "not_ready",
-        "service": "requirement-review-v1",
+        "service": "prd-pal",
         "checks": {
             "startup_completed": startup_completed,
             "outputs_root_writable": outputs_writable,

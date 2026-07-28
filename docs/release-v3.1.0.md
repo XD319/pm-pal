@@ -5,7 +5,7 @@
 - Formalizes Feishu production submission through signed plugin or message-card callbacks.
 - Adds explicit Feishu H5 run context propagation for status, result, report, artifact preview, clarification, revision, roadmap, and SSE progress APIs.
 - Adds Feishu OpenAPI notification delivery alongside the existing webhook sender.
-- Tightens release governance for CI, Ruff, package versioning, documentation, and Docker Compose config.
+- Tightens release governance for CI, package versioning, documentation, and Docker Compose config.
 
 ## Feishu Production Hardening
 
@@ -30,4 +30,4 @@
 
 - Set `MARRDP_PUBLIC_BASE_URL` before real Feishu card notifications.
 - Keep `MARRDP_FEISHU_NOTIFICATION_DRY_RUN=true` only for local joint debugging.
-- Run release validation with `ruff check .`, `ruff format --check .`, `pytest -q`, `npm test`, and `npm run build`.
+- Run release validation with `pytest -q`, `npm test -- --run`, and `npm run build` (see `.github/workflows/ci.yml`).

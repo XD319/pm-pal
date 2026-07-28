@@ -1,15 +1,15 @@
 # Quick Start
 
-这份文档只关注一件事：让你第一次就把 `prd-pal` 跑起来。
+这份文档只关注一件事：让你第一次就把 `prd-pal` 的项目空间流程跑起来。
 
 ## 目标
 
 完成后，你应该可以：
 
 - 启动前后端
-- 提交一份 sample PRD
-- 打开结果页
-- 下载报告
+- 创建项目并添加 sample PRD 来源
+- 从项目页发起评审
+- 打开结果页并下载报告
 
 ## 1. 前置要求
 
@@ -32,8 +32,6 @@ cd ..
 
 ## 3. 配置 `.env`
 
-复制模板：
-
 ```bash
 copy .env.example .env
 ```
@@ -47,7 +45,7 @@ FAST_LLM=openai:gpt-5-nano
 STRATEGIC_LLM=openai:gpt-5-nano
 ```
 
-本地第一次验证时，其他变量可以先保持默认。
+如需在 Web 设置页保存 provider API key，还需生成并设置 `MARRDP_SECRETS_MASTER_KEY`（见 [project-space.md](./project-space.md)）。
 
 ## 4. 启动
 
@@ -55,12 +53,6 @@ Windows 推荐：
 
 ```bash
 start-dev.cmd
-```
-
-PowerShell：
-
-```powershell
-.\start-dev.ps1
 ```
 
 手动启动：
@@ -81,13 +73,17 @@ npm run dev
 ## 5. 验证第一次提交
 
 1. 打开首页 `http://127.0.0.1:5173`
-2. 点击 `Load sample`
-3. 点击 `Submit review`
-4. 等待跳转到结果页
-5. 确认页面里能看到：
-   - 运行进度
-   - findings / risks / questions
-   - 报告下载区
+2. 创建项目（或使用默认引导流程）
+3. 添加 PRD 来源（粘贴 sample 文本或上传文件）
+4. 从项目页点击发起评审
+5. 等待跳转到结果页
+6. 确认页面里能看到运行进度、findings/risks/questions 和报告下载区
+
+也可直接用 CLI 验证评审内核：
+
+```bash
+prd-pal review --input docs/sample_prd.md
+```
 
 ## 6. 常见问题
 
@@ -119,5 +115,7 @@ npm run dev
 
 本地链路跑通后，继续看：
 
-- [feishu-setup.md](./feishu-setup.md)
-- [v2-api.md](./v2-api.md)
+- [project-space.md](./project-space.md) — 项目空间与模型配置
+- [v2-api.md](./v2-api.md) — 项目域评审 API
+- [feishu-setup.md](./feishu-setup.md) — 飞书主入口
+- [callback-config.md](./callback-config.md) — 连接器 webhook 配置
