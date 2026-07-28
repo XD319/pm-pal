@@ -1,4 +1,4 @@
-﻿import { Link, NavLink, useLocation } from 'react-router-dom';
+﻿import { NavLink } from 'react-router-dom';
 
 function SunIcon() {
   return (
@@ -30,69 +30,23 @@ function MoonIcon() {
 }
 
 function Navbar({ theme, onToggleTheme }) {
-  const location = useLocation();
-  const isHistoryActive = location.pathname === '/' && location.hash === '#history';
-  const isCompareActive = location.pathname === '/compare';
-  const isTrendsActive = location.pathname === '/trends';
-  const isPmActive = location.pathname === '/pm' || location.pathname.startsWith('/pm');
   const isDark = theme === 'dark';
 
   return (
     <header className="navbar-shell">
       <div className="navbar">
-        <NavLink to="/" end className="navbar-brand" aria-label="Review Workspace home">
-          <span className="navbar-logo" aria-hidden="true">RW</span>
+        <NavLink to="/" end className="navbar-brand" aria-label="PRD Pal project space">
+          <span className="navbar-logo" aria-hidden="true">PP</span>
           <span className="navbar-brand-copy">
-            <strong>Review Workspace</strong>
-            <small>Requirement review cockpit</small>
+            <strong>PRD Pal</strong>
+            <small>AI project space</small>
           </span>
         </NavLink>
 
         <div className="navbar-actions">
           <nav className="navbar-links" aria-label="Primary">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}
-              aria-label="Go to home page"
-            >
-              Home
-            </NavLink>
-            <Link
-              to={{ pathname: '/', hash: '#history' }}
-              className={`nav-link${isHistoryActive ? ' nav-link-active' : ''}`}
-              aria-label="Jump to review history"
-            >
-              History
-            </Link>
-            <NavLink
-              to="/compare"
-              className={`nav-link${isCompareActive ? ' nav-link-active' : ''}`}
-              aria-label="Open run comparison"
-            >
-              对比
-            </NavLink>
-            <NavLink
-              to="/trends"
-              className={`nav-link${isTrendsActive ? ' nav-link-active' : ''}`}
-              aria-label="Open trend analysis"
-            >
-              趋势
-            </NavLink>
-            <NavLink
-              to="/pm?view=evidence"
-              className={`nav-link${isPmActive ? ' nav-link-active' : ''}`}
-              aria-label="Open decision workbench"
-            >
-              决策工作台
-            </NavLink>
-            <NavLink
-              to="/feishu"
-              className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}
-              aria-label="Open Feishu entry page"
-            >
-              Feishu Entry
-            </NavLink>
+            <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>项目</NavLink>
+            <NavLink to="/settings/providers" className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>模型连接</NavLink>
           </nav>
 
           <button
@@ -116,3 +70,4 @@ function Navbar({ theme, onToggleTheme }) {
 }
 
 export default Navbar;
+
