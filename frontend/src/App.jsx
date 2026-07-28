@@ -9,12 +9,16 @@ import ProviderSettingsPage from './pages/ProviderSettingsPage';
 import './styles/layout.css';
 
 const RunDetailsPage = lazy(() => import('./pages/RunDetailsPage'));
+const LegacyRunRedirect = lazy(() => import('./pages/LegacyRunRedirect'));
 
 function AppLayout() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const searchParams = new URLSearchParams(location.search);
-  const isFeishuEmbed = location.pathname.startsWith('/run/') && searchParams.get('embed') === 'feishu';
+  const isFeishuEmbed = (
+    (location.pathname.startsWith('/run/') || /\/projects\/[^/]+\/reviews\//.test(location.pathname))
+    && searchParams.get('embed') === 'feishu'
+  );
 
   useEffect(() => {
     if (location.hash) {
@@ -68,7 +72,7 @@ function App() {
           path="run/:runId"
           element={(
             <Suspense fallback={<RouteLoadingFallback />}>
-              <RunDetailsPage />
+              <LegacyRunRedirect />
             </Suspense>
           )}
         />

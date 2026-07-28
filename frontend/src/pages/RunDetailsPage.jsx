@@ -15,9 +15,10 @@ import useReviewRun from '../hooks/useReviewRun';
 import useReviewRunSSE from '../hooks/useReviewRunSSE';
 
 function RunDetailsPage() {
-  const { runId = '' } = useParams();
+  const { projectId = '', runId = '' } = useParams();
   const [searchParams] = useSearchParams();
   const isFeishuEmbed = searchParams.get('embed') === 'feishu';
+  const projectHome = projectId ? `/projects/${projectId}` : '/';
   const sseRun = useReviewRunSSE(runId, { fallbackToPolling: true });
   const {
     runState,
@@ -55,29 +56,40 @@ function RunDetailsPage() {
       <header className={`page-header${isFeishuEmbed ? ' page-header-embed' : ''}`}>
         {!isFeishuEmbed ? (
           <nav className="breadcrumbs" aria-label="Breadcrumb">
-            <Link to="/" aria-label="Return to home page">Home</Link>
+            <Link to="/" aria-label="Return to projects">Projects</Link>
             <span>{'>'}</span>
-            <span>Run</span>
-            <span>{'>'}</span>
+            {projectId ? (
+              <>
+                <Link to={projectHome}>{projectId}</Link>
+                <span>{'>'}</span>
+                <span>Review</span>
+                <span>{'>'}</span>
+              </>
+            ) : (
+              <>
+                <span>Run</span>
+                <span>{'>'}</span>
+              </>
+            )}
             <span aria-current="page">{runId}</span>
           </nav>
         ) : null}
 
         <div className={`page-header-row${isFeishuEmbed ? ' page-header-row-embed' : ''}`}>
           <div>
-            <p className="eyebrow">{isFeishuEmbed ? 'Feishu review run' : 'Run detail workspace'}</p>
+            <p className="eyebrow">{isFeishuEmbed ? 'Feishu review run' : 'Project review workspace'}</p>
             <h1>Run {runId}</h1>
             <p className="hero-copy">
               {isFeishuEmbed
                 ? 'Track progress, review findings, respond to clarification prompts, decide whether to revise the PRD, and open artifacts from a compact mobile-friendly detail page.'
-                : 'Track execution, inspect structured review output, decide whether to revise the PRD, and download artifacts from one dedicated run URL.'}
+                : 'Track execution, inspect structured review output, decide whether to revise the PRD, and download artifacts from the project-scoped review URL.'}
             </p>
           </div>
 
           <div className="action-row">
             {!isFeishuEmbed ? (
-              <Link to="/" className="ghost-button" aria-label="Return to home page">
-                Back to home
+              <Link to={projectHome} className="ghost-button" aria-label="Return to project">
+                Back to project
               </Link>
             ) : null}
             <button

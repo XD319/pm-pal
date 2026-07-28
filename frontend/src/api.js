@@ -41,8 +41,9 @@ function projectReviewApiPath(runId, suffix = '') {
       return `/api/projects/${encodeURIComponent(match[1])}/reviews/${encodeURIComponent(runId)}${suffix}`;
     }
   }
-  return appendFeishuContext(`/api/review/${encodeURIComponent(runId)}${suffix}`);
+  return `/api/review/${encodeURIComponent(runId)}${suffix}`;
 }
+
 function appendFeishuContext(path) {
   const context = getCurrentFeishuContext();
   if (!context.open_id && !context.tenant_key && context.embed !== 'feishu') {
@@ -59,6 +60,10 @@ function appendFeishuContext(path) {
   });
   const queryString = params.toString();
   return `${pathname}${queryString ? `?${queryString}` : ''}${hash ? `#${hash}` : ''}`;
+}
+
+function reviewApiPath(runId, suffix = '') {
+  return appendFeishuContext(projectReviewApiPath(runId, suffix));
 }
 
 function feishuContextHeaders() {
@@ -141,54 +146,54 @@ export function submitFeishuReview(payload) {
 }
 
 export function fetchReviewStatus(runId) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}`));
+  return requestJson(reviewApiPath(runId));
 }
 
 export function fetchReviewResult(runId) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/result`));
+  return requestJson(reviewApiPath(runId, '/result'));
 }
 
 export function answerReviewClarification(runId, payload) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/clarification`), {
+  return requestJson(reviewApiPath(runId, '/clarification'), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function updateReviewRevisionStage(runId, payload) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/revision-stage`), {
+  return requestJson(reviewApiPath(runId, '/revision-stage'), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function submitReviewRevisionInput(runId, payload) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/revision-input`), {
+  return requestJson(reviewApiPath(runId, '/revision-input'), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function confirmReviewRevision(runId, payload) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/revision-confirm`), {
+  return requestJson(reviewApiPath(runId, '/revision-confirm'), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function fetchArtifactPreview(runId, artifactKey) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactKey)}`));
+  return requestJson(reviewApiPath(runId, `/artifacts/${encodeURIComponent(artifactKey)}`));
 }
 
 export function generateReviewRoadmap(runId) {
-  return requestJson(appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/roadmap-generate`), {
+  return requestJson(reviewApiPath(runId, '/roadmap-generate'), {
     method: 'POST',
     body: JSON.stringify({}),
   });
 }
 
 export function buildReviewProgressStreamUrl(runId) {
-  return appendFeishuContext(`/api/review/${encodeURIComponent(runId)}/progress/stream`);
+  return reviewApiPath(runId, '/progress/stream');
 }
 
 export function fetchRuns() {
@@ -368,7 +373,13 @@ export function fetchPilotMetrics(productId = '') {
 }
 
 export async function downloadReportArtifact(runId, format) {
-  const response = await fetchWithTimeout(appendFeishuContext(`/api/report/${encodeURIComponent(runId)}?format=${encodeURIComponent(format)}`), {
+  const projectMatch = typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/projects\/([^/]+)\/reviews\/[^/]+/)
+    : null;
+  const reportPath = projectMatch
+    ? `/api/projects/${encodeURIComponent(projectMatch[1])}/reviews/${encodeURIComponent(runId)}/report?format=${encodeURIComponent(format)}`
+    : `/api/report/${encodeURIComponent(runId)}?format=${encodeURIComponent(format)}`;
+  const response = await fetchWithTimeout(appendFeishuContext(reportPath), {
     timeoutMs: 20000,
     headers: {},
   });
@@ -402,6 +413,9 @@ export async function downloadReportArtifact(runId, format) {
   anchor.click();
   anchor.remove();
   window.URL.revokeObjectURL(url);
+}
+export function lookupProjectByRun(runId) {
+  return requestJson(`/api/projects/by-run/${encodeURIComponent(runId)}`);
 }
 export function listProjects() { return requestJson('/api/projects'); }
 export function getProject(projectId) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}`); }

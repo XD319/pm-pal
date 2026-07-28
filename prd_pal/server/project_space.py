@@ -11,10 +11,17 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from prd_pal.runtime.llm_provider.generic.base import _SUPPORTED_PROVIDERS
+from prd_pal.server.job_state import (
+    ClarificationAnswerRequest,
+    RevisionConfirmRequest,
+    RevisionInputRequest,
+    RevisionStageRequest,
+)
 
 LOCAL_PROVIDER = "ollama"
 PROVIDER_PACKAGES = {"openai": "langchain_openai", "deepseek": "langchain_openai", "azure_openai": "langchain_openai", "ollama": "langchain_ollama", "anthropic": "langchain_anthropic", "groq": "langchain_groq", "google_genai": "langchain_google_genai", "google_vertexai": "langchain_google_vertexai", "bedrock": "langchain_aws", "cohere": "langchain_cohere", "mistralai": "langchain_mistralai", "fireworks": "langchain_fireworks", "huggingface": "langchain_huggingface", "gigachat": "langchain_gigachat", "netmind": "langchain_netmind"}
@@ -97,7 +104,22 @@ class SecretBox:
         try: return self.box.decrypt(token.encode()).decode()
         except InvalidToken as exc: raise HTTPException(503, detail="Provider secret cannot be decrypted with this master key.") from exc
 
-def create_project_space_router(*, db_path: Path, enqueue_review: Callable[..., Awaitable[dict[str, Any]]], get_run_status: Callable[[str], Awaitable[dict[str, Any]]] | None = None, get_run_result: Callable[[str], Awaitable[dict[str, Any]]] | None = None) -> APIRouter:
+def create_project_space_router(
+    *,
+    db_path: Path,
+    enqueue_review: Callable[..., Awaitable[dict[str, Any]]],
+    get_run_status: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+    get_run_result: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+    stream_progress: Callable[[str], Awaitable[StreamingResponse]] | None = None,
+    submit_clarification: Callable[[str, ClarificationAnswerRequest], Awaitable[dict[str, Any]]] | None = None,
+    update_revision_stage: Callable[[str, RevisionStageRequest], Awaitable[dict[str, Any]]] | None = None,
+    submit_revision_input: Callable[[str, RevisionInputRequest], Awaitable[dict[str, Any]]] | None = None,
+    generate_revision: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+    confirm_revision: Callable[[str, RevisionConfirmRequest], Awaitable[dict[str, Any]]] | None = None,
+    generate_roadmap: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+    get_artifact_preview: Callable[[str, str], Awaitable[dict[str, Any]]] | None = None,
+    get_report: Callable[[str, str], Awaitable[Response]] | None = None,
+) -> APIRouter:
     store, secrets = Store(db_path), SecretBox(); store.initialize()
     router = APIRouter(prefix="/api", tags=["project-space"])
     def public_connection(row):
@@ -192,18 +214,90 @@ def create_project_space_router(*, db_path: Path, enqueue_review: Callable[..., 
         if not store.rows("SELECT run_id FROM project_runs WHERE project_id=? AND run_id=?", (project_id, run_id)):
             raise HTTPException(404, detail="Review run is not part of this project")
 
+    def require_handler(handler: Callable | None, name: str) -> Callable:
+        if handler is None:
+            raise HTTPException(503, detail=f"Review {name} service is unavailable")
+        return handler
+
     @router.get("/projects/{project_id}/reviews/{run_id}")
     async def project_review_status(project_id: str, run_id: str):
         ensure_project_run(project_id, run_id)
-        if get_run_status is None:
-            raise HTTPException(503, detail="Review status service is unavailable")
-        return await get_run_status(run_id)
+        return await require_handler(get_run_status, "status")(run_id)
 
     @router.get("/projects/{project_id}/reviews/{run_id}/result")
     async def project_review_result(project_id: str, run_id: str):
         ensure_project_run(project_id, run_id)
-        if get_run_result is None:
-            raise HTTPException(503, detail="Review result service is unavailable")
-        return await get_run_result(run_id)
+        return await require_handler(get_run_result, "result")(run_id)
+
+    @router.get("/projects/{project_id}/reviews/{run_id}/progress/stream")
+    async def project_review_progress_stream(project_id: str, run_id: str):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(stream_progress, "progress stream")(run_id)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/clarification")
+    async def project_review_clarification(
+        project_id: str, run_id: str, payload: ClarificationAnswerRequest
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(submit_clarification, "clarification")(run_id, payload)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/revision-stage")
+    async def project_review_revision_stage(
+        project_id: str, run_id: str, payload: RevisionStageRequest
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(update_revision_stage, "revision stage")(run_id, payload)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/revision-input")
+    async def project_review_revision_input(
+        project_id: str, run_id: str, payload: RevisionInputRequest
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(submit_revision_input, "revision input")(run_id, payload)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/revision-generate")
+    async def project_review_revision_generate(project_id: str, run_id: str):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(generate_revision, "revision generate")(run_id)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/revision-confirm")
+    async def project_review_revision_confirm(
+        project_id: str, run_id: str, payload: RevisionConfirmRequest
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(confirm_revision, "revision confirm")(run_id, payload)
+
+    @router.post("/projects/{project_id}/reviews/{run_id}/roadmap-generate")
+    async def project_review_roadmap_generate(project_id: str, run_id: str):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(generate_roadmap, "roadmap")(run_id)
+
+    @router.get("/projects/{project_id}/reviews/{run_id}/artifacts/{artifact_key}")
+    async def project_review_artifact(
+        project_id: str, run_id: str, artifact_key: str
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(get_artifact_preview, "artifact preview")(
+            run_id, artifact_key
+        )
+
+    @router.get("/projects/{project_id}/reviews/{run_id}/report")
+    async def project_review_report(
+        project_id: str,
+        run_id: str,
+        format: str = Query(default="md"),
+    ):
+        ensure_project_run(project_id, run_id)
+        return await require_handler(get_report, "report")(run_id, format)
+
+    @router.get("/projects/by-run/{run_id}")
+    async def lookup_project_by_run(run_id: str):
+        rows = store.rows(
+            "SELECT project_id FROM project_runs WHERE run_id=?", (run_id,)
+        )
+        if not rows:
+            raise HTTPException(404, detail="Review run is not linked to a project")
+        return {"project_id": rows[0]["project_id"], "run_id": run_id}
+
     return router
 

@@ -1222,9 +1222,11 @@ async def create_review(payload: ReviewCreateRequest) -> dict[str, str]:
 @app.get("/api/review/{run_id}")
 async def get_review_status(run_id: str, request: Request = None) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_get_review_status(run_id)
+
+
+async def _project_get_review_status(run_id: str) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     run_dir = OUTPUTS_ROOT / run_id
     job = await _job_registry.get(run_id)
 
@@ -1254,6 +1256,10 @@ async def get_review_status(run_id: str, request: Request = None) -> dict[str, A
 @app.get("/api/review/{run_id}/progress/stream")
 async def stream_review_progress(run_id: str, request: Request) -> StreamingResponse:
     _enforce_run_access(request, run_id)
+    return await _project_stream_review_progress(run_id)
+
+
+async def _project_stream_review_progress(run_id: str) -> StreamingResponse:
     job = await _job_registry.get(run_id)
 
     run_dir = OUTPUTS_ROOT / run_id
@@ -1293,18 +1299,22 @@ async def submit_review_clarification(
     run_id: str, payload: ClarificationAnswerRequest, request: Request
 ) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_submit_clarification(run_id, payload)
+
+
+async def _project_submit_clarification(
+    run_id: str, payload: ClarificationAnswerRequest
+) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         response_payload = await answer_review_clarification_async(
             run_id=run_id,
             answers=[item.model_dump(mode="python") for item in payload.answers],
             outputs_root=OUTPUTS_ROOT,
             audit_context={
-                "source": "web",
+                "source": "project_space",
                 "tool_name": "review.clarification",
-                "actor": str(request_context.get("open_id") or "web").strip() or "web",
+                "actor": "local",
                 "client_metadata": request_context,
             },
             patch=payload.patch,
@@ -1346,18 +1356,22 @@ async def update_review_revision_stage(
     run_id: str, payload: RevisionStageRequest, request: Request
 ) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_update_revision_stage(run_id, payload)
+
+
+async def _project_update_revision_stage(
+    run_id: str, payload: RevisionStageRequest
+) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         revision_stage = record_revision_stage_decision(
             run_id=run_id,
             decision=payload.decision,
             outputs_root=OUTPUTS_ROOT,
             audit_context={
-                "source": "web",
+                "source": "project_space",
                 "tool_name": "review.revision_stage",
-                "actor": str(request_context.get("open_id") or "web").strip() or "web",
+                "actor": "local",
                 "client_metadata": request_context,
             },
         )
@@ -1391,9 +1405,13 @@ async def submit_review_revision_input(
     run_id: str, payload: RevisionInputRequest, request: Request
 ) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_submit_revision_input(run_id, payload)
+
+
+async def _project_submit_revision_input(
+    run_id: str, payload: RevisionInputRequest
+) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         response_payload = record_revision_input(
             run_id=run_id,
@@ -1403,9 +1421,9 @@ async def submit_review_revision_input(
             meeting_notes_file_ref=payload.meeting_notes_file_ref,
             outputs_root=OUTPUTS_ROOT,
             audit_context={
-                "source": "web",
+                "source": "project_space",
                 "tool_name": "review.revision_input",
-                "actor": str(request_context.get("open_id") or "web").strip() or "web",
+                "actor": "local",
                 "client_metadata": request_context,
             },
         )
@@ -1434,17 +1452,19 @@ async def submit_review_revision_input(
 @app.post("/api/review/{run_id}/revision-generate")
 async def generate_review_revision(run_id: str, request: Request) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_generate_revision(run_id)
+
+
+async def _project_generate_revision(run_id: str) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         response_payload = await generate_revision_for_run_async(
             run_id=run_id,
             outputs_root=OUTPUTS_ROOT,
             audit_context={
-                "source": "web",
+                "source": "project_space",
                 "tool_name": "review.revision_generate",
-                "actor": str(request_context.get("open_id") or "web").strip() or "web",
+                "actor": "local",
                 "client_metadata": request_context,
             },
         )
@@ -1475,9 +1495,13 @@ async def confirm_review_revision(
     run_id: str, payload: RevisionConfirmRequest, request: Request
 ) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_confirm_revision(run_id, payload)
+
+
+async def _project_confirm_revision(
+    run_id: str, payload: RevisionConfirmRequest
+) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         revision_stage = confirm_revision_action(
             run_id=run_id,
@@ -1485,9 +1509,9 @@ async def confirm_review_revision(
             additional_requirements=payload.additional_requirements,
             outputs_root=OUTPUTS_ROOT,
             audit_context={
-                "source": "web",
+                "source": "project_space",
                 "tool_name": "review.revision_confirm",
-                "actor": str(request_context.get("open_id") or "web").strip() or "web",
+                "actor": "local",
                 "client_metadata": request_context,
             },
         )
@@ -1505,10 +1529,9 @@ async def confirm_review_revision(
                 run_id=run_id,
                 outputs_root=OUTPUTS_ROOT,
                 audit_context={
-                    "source": "web",
+                    "source": "project_space",
                     "tool_name": "review.revision_regenerate",
-                    "actor": str(request_context.get("open_id") or "web").strip()
-                    or "web",
+                    "actor": "local",
                     "client_metadata": request_context,
                 },
             )
@@ -1536,6 +1559,10 @@ async def confirm_review_revision(
 @app.post("/api/review/{run_id}/roadmap-generate")
 async def generate_review_roadmap(run_id: str, request: Request) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
+    return await _project_generate_roadmap(run_id)
+
+
+async def _project_generate_roadmap(run_id: str) -> dict[str, Any]:
     try:
         generate_roadmap_for_run(run_id=run_id, outputs_root=OUTPUTS_ROOT)
         return get_review_result_payload(run_id=run_id, outputs_root=OUTPUTS_ROOT)
@@ -1556,11 +1583,13 @@ async def generate_review_roadmap(run_id: str, request: Request) -> dict[str, An
 
 
 @app.get("/api/review/{run_id}/result")
-async def get_review_result(run_id: str, request: Request) -> dict[str, Any]:
+async def get_review_result(run_id: str, request: Request = None) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
-    request_context = _resolve_run_feishu_context(
-        run_id, _resolve_request_feishu_context(request)
-    )
+    return await _project_get_review_result(run_id)
+
+
+async def _project_get_review_result(run_id: str) -> dict[str, Any]:
+    request_context = _resolve_run_feishu_context(run_id, {})
     try:
         payload = get_review_result_payload(run_id=run_id, outputs_root=OUTPUTS_ROOT)
         payload["result_page"] = _build_result_page_payload(
@@ -1592,6 +1621,10 @@ async def get_review_artifact_preview(
     run_id: str, artifact_key: str, request: Request
 ) -> dict[str, Any]:
     _enforce_run_access(request, run_id)
+    return await _project_get_artifact_preview(run_id, artifact_key)
+
+
+async def _project_get_artifact_preview(run_id: str, artifact_key: str) -> dict[str, Any]:
     try:
         return get_review_artifact_preview_payload(
             run_id=run_id,
@@ -1669,6 +1702,14 @@ async def get_report(
     format: Literal["md", "json", "html", "csv"] = Query(default="md"),
 ) -> Response:
     _enforce_run_access(request, run_id)
+    return await _project_get_report(run_id, format)
+
+
+async def _project_get_report(
+    run_id: str, format: str = "md"
+) -> Response:
+    if format not in {"md", "json", "html", "csv"}:
+        raise HTTPException(status_code=422, detail=f"Unsupported report format: {format}")
     run_dir = OUTPUTS_ROOT / run_id
     if not run_dir.exists():
         raise HTTPException(status_code=404, detail=f"run_id not found: {run_id}")
@@ -1734,8 +1775,17 @@ app.include_router(
     create_project_space_router(
         db_path=PROJECT_SPACE_DB_PATH,
         enqueue_review=_enqueue_review_run,
-        get_run_status=lambda run_id: get_review_status(run_id),
-        get_run_result=lambda run_id: get_review_result(run_id),
+        get_run_status=_project_get_review_status,
+        get_run_result=_project_get_review_result,
+        stream_progress=_project_stream_review_progress,
+        submit_clarification=_project_submit_clarification,
+        update_revision_stage=_project_update_revision_stage,
+        submit_revision_input=_project_submit_revision_input,
+        generate_revision=_project_generate_revision,
+        confirm_revision=_project_confirm_revision,
+        generate_roadmap=_project_generate_roadmap,
+        get_artifact_preview=_project_get_artifact_preview,
+        get_report=_project_get_report,
     )
 )
 app.include_router(

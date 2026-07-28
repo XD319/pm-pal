@@ -11,7 +11,31 @@ const okJsonResponse = {
   text: async () => '',
 };
 
-describe('api Feishu context propagation', () => {
+describe('api project-scoped review paths', () => {
+  beforeEach(() => {
+    window.history.replaceState(
+      {},
+      '',
+      '/projects/project_abc/reviews/20260409T120001Z',
+    );
+    window.fetch.mockResolvedValue(okJsonResponse);
+  });
+
+  it('routes run-level requests through project review APIs', async () => {
+    await fetchReviewResult('20260409T120001Z');
+
+    const [url] = window.fetch.mock.calls[0];
+    expect(url).toBe('/api/projects/project_abc/reviews/20260409T120001Z/result');
+  });
+
+  it('builds the SSE progress URL under the project review prefix', () => {
+    expect(buildReviewProgressStreamUrl('20260409T120001Z')).toBe(
+      '/api/projects/project_abc/reviews/20260409T120001Z/progress/stream',
+    );
+  });
+});
+
+describe('api Feishu context on legacy run paths', () => {
   beforeEach(() => {
     window.history.replaceState(
       {},
@@ -21,7 +45,7 @@ describe('api Feishu context propagation', () => {
     window.fetch.mockResolvedValue(okJsonResponse);
   });
 
-  it('adds explicit Feishu context query params and headers to run-level requests', async () => {
+  it('adds explicit Feishu context query params and headers to legacy run-level requests', async () => {
     await fetchReviewResult('20260409T120001Z');
 
     const [url, options] = window.fetch.mock.calls[0];
