@@ -12,6 +12,8 @@ from prd_pal.workspace.repository_support import RepositoryResult, SQLiteReposit
 from .models import (
     DecisionAuditEvent,
     DecisionInsight,
+    DeliveryExport,
+    DeliveryExportStatus,
     EvidenceRecord,
     EvidenceSource,
     OpportunityCandidate,
@@ -683,6 +685,92 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
 
         return await self._run("product_decision.get_quality_assessment", operation)
 
+    async def upsert_delivery_export(
+        self, export: DeliveryExport
+    ) -> RepositoryResult[DeliveryExport]:
+        async def operation(connection: Any) -> DeliveryExport:
+            await self._ensure_schema(connection)
+            await connection.execute(
+                """INSERT INTO decision_delivery_export
+                (id, prd_version_id, product_id, target_kind, idempotency_key, status,
+                 external_url, external_id, failure_reason, degraded_from, field_payload_json,
+                 audit_id, evidence_refs_json, created_at, updated_at, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(idempotency_key) DO UPDATE SET
+                status=excluded.status, external_url=excluded.external_url,
+                external_id=excluded.external_id, failure_reason=excluded.failure_reason,
+                degraded_from=excluded.degraded_from, field_payload_json=excluded.field_payload_json,
+                audit_id=excluded.audit_id, updated_at=excluded.updated_at,
+                metadata_json=excluded.metadata_json""",
+                (
+                    export.id,
+                    export.prd_version_id,
+                    export.product_id,
+                    export.target_kind,
+                    export.idempotency_key,
+                    str(export.status),
+                    export.external_url,
+                    export.external_id,
+                    export.failure_reason,
+                    export.degraded_from,
+                    self._dump_json(export.field_payload),
+                    export.audit_id,
+                    self._dump_json(export.evidence_refs),
+                    export.created_at,
+                    export.updated_at,
+                    self._dump_json(export.metadata),
+                ),
+            )
+            await connection.commit()
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_delivery_export WHERE idempotency_key = ?",
+                    (export.idempotency_key,),
+                )
+            ).fetchone()
+            return self._delivery_from_row(row)
+
+        return await self._run("product_decision.upsert_delivery_export", operation)
+
+    async def get_delivery_by_idempotency_key(
+        self, key: str
+    ) -> RepositoryResult[DeliveryExport]:
+        async def operation(connection: Any) -> DeliveryExport:
+            await self._ensure_schema(connection)
+            row = await (
+                await connection.execute(
+                    "SELECT * FROM decision_delivery_export WHERE idempotency_key = ?",
+                    (key,),
+                )
+            ).fetchone()
+            if row is None:
+                self._raise_not_found("delivery_export", key)
+            return self._delivery_from_row(row)
+
+        return await self._run("product_decision.get_delivery_by_idempotency_key", operation)
+
+    async def list_delivery_exports(
+        self, *, prd_version_id: str = "", product_id: str = ""
+    ) -> RepositoryResult[list[DeliveryExport]]:
+        async def operation(connection: Any) -> list[DeliveryExport]:
+            await self._ensure_schema(connection)
+            clauses: list[str] = []
+            params: list[str] = []
+            if prd_version_id:
+                clauses.append("prd_version_id = ?")
+                params.append(prd_version_id)
+            if product_id:
+                clauses.append("product_id = ?")
+                params.append(product_id)
+            query = "SELECT * FROM decision_delivery_export"
+            if clauses:
+                query += " WHERE " + " AND ".join(clauses)
+            query += " ORDER BY updated_at DESC"
+            rows = await (await connection.execute(query, tuple(params))).fetchall()
+            return [self._delivery_from_row(row) for row in rows]
+
+        return await self._run("product_decision.list_delivery_exports", operation)
+
     async def _source_exists(self, connection: Any, source_id: str) -> EvidenceSource:
         row = await (
             await connection.execute(
@@ -825,6 +913,24 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
         );
         CREATE INDEX IF NOT EXISTS idx_decision_prd_product
             ON decision_prd_version(product_id, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS decision_delivery_export (
+            id TEXT PRIMARY KEY,
+            prd_version_id TEXT NOT NULL,
+            product_id TEXT NOT NULL DEFAULT '',
+            target_kind TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL,
+            external_url TEXT NOT NULL DEFAULT '',
+            external_id TEXT NOT NULL DEFAULT '',
+            failure_reason TEXT NOT NULL DEFAULT '',
+            degraded_from TEXT NOT NULL DEFAULT '',
+            field_payload_json TEXT NOT NULL DEFAULT '{}',
+            audit_id TEXT NOT NULL DEFAULT '',
+            evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
         """
         )
         await self._ensure_column(
@@ -949,6 +1055,26 @@ class ProductDecisionRepository(SQLiteRepositoryBase):
             source_refs=self._load_json_list(row["source_refs_json"]),
             source_urls=self._load_json_list(row["source_urls_json"]),
             audit_id=row["audit_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            metadata=self._load_json_object(row["metadata_json"]),
+        )
+
+    def _delivery_from_row(self, row: Any) -> DeliveryExport:
+        return DeliveryExport(
+            id=row["id"],
+            prd_version_id=row["prd_version_id"],
+            product_id=row["product_id"],
+            target_kind=row["target_kind"],
+            idempotency_key=row["idempotency_key"],
+            status=DeliveryExportStatus(str(row["status"])),
+            external_url=row["external_url"],
+            external_id=row["external_id"],
+            failure_reason=row["failure_reason"],
+            degraded_from=row["degraded_from"],
+            field_payload=self._load_json_object(row["field_payload_json"]),
+            audit_id=row["audit_id"],
+            evidence_refs=self._load_json_list(row["evidence_refs_json"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             metadata=self._load_json_object(row["metadata_json"]),

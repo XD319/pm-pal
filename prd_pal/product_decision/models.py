@@ -158,3 +158,29 @@ class ProductOwnerConfig(AgentSchemaModel):
     product_id: str = Field(min_length=1)
     owner_open_id: str = Field(min_length=1)
     admin_open_ids: SafeStrList = Field(default_factory=list)
+
+
+class DeliveryExportStatus(StrEnum):
+    pending = "pending"
+    succeeded = "succeeded"
+    failed = "failed"
+    degraded = "degraded"
+
+
+class DeliveryExport(AgentSchemaModel):
+    id: str = Field(min_length=1)
+    prd_version_id: str = Field(min_length=1)
+    product_id: str = ""
+    target_kind: str = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1)
+    status: DeliveryExportStatus = DeliveryExportStatus.pending
+    external_url: str = ""
+    external_id: str = ""
+    failure_reason: str = ""
+    degraded_from: str = ""
+    field_payload: dict[str, Any] = Field(default_factory=dict)
+    audit_id: str = ""
+    evidence_refs: SafeStrList = Field(default_factory=list)
+    created_at: str = ""
+    updated_at: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)

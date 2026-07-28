@@ -14,6 +14,11 @@ from .models import EvidenceRecord, EvidenceSource, EvidenceSourceType, SyncTrig
 from .repository import ProductDecisionRepository
 from .scheduler import DailyEvidenceSyncScheduler
 from .prd_lifecycle import ApprovalService, PrdLifecycleService
+from .delivery import (
+    DeliveryService,
+    FeishuBitableDeliveryTarget,
+    FeishuProjectDeliveryTarget,
+)
 from .services import (
     CollectService,
     DecisionDomainError,
@@ -127,6 +132,17 @@ class PrdReviseRequest(BaseModel):
     markdown: str | None = None
     actor_open_id: str = ""
     reason: str = ""
+
+
+class DeliveryExportRequest(BaseModel):
+    actor_open_id: str = ""
+    target: str = "feishu_bitable"
+    app_token: str = ""
+    table_id: str = ""
+    project_key: str = ""
+    field_mapping: dict[str, str] = Field(default_factory=dict)
+    enable_project: bool = False
+    base_url: str = ""
 
 
 def _domain_http(exc: DecisionDomainError) -> HTTPException:
@@ -551,6 +567,47 @@ def create_product_decision_router(
             "prd_versions": [
                 item.model_dump(mode="json") for item in (result.value or [])
             ]
+        }
+
+    @router.post("/prd-versions/{prd_version_id}/export")
+    async def export_prd(prd_version_id: str, payload: DeliveryExportRequest) -> dict:
+        repository = await repo()
+        bitable = FeishuBitableDeliveryTarget(
+            app_token=payload.app_token,
+            table_id=payload.table_id,
+            field_mapping=payload.field_mapping,
+            base_url=payload.base_url,
+        )
+        if payload.enable_project or payload.target == "feishu_project":
+            target = FeishuProjectDeliveryTarget(
+                project_key=payload.project_key,
+                field_mapping=payload.field_mapping,
+                fallback=bitable,
+                enabled=bool(payload.project_key),
+            )
+        else:
+            target = bitable
+        service = DeliveryService(repository)
+        try:
+            export, receipt = await service.export_prd(
+                prd_version_id,
+                target=target,
+                actor_open_id=payload.actor_open_id,
+            )
+        except DecisionDomainError as exc:
+            raise _domain_http(exc) from exc
+        return {
+            "delivery": export.model_dump(mode="json"),
+            **receipt.model_dump(mode="json"),
+        }
+
+    @router.get("/deliveries")
+    async def list_deliveries(prd_version_id: str = "", product_id: str = "") -> dict:
+        result = await (await repo()).list_delivery_exports(
+            prd_version_id=prd_version_id, product_id=product_id
+        )
+        return {
+            "deliveries": [item.model_dump(mode="json") for item in (result.value or [])]
         }
 
     return router
