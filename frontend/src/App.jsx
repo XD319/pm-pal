@@ -64,6 +64,14 @@ function App() {
         <Route path="developer" element={<HomePage />} />
         <Route path="feishu" element={<FeishuEntryPage />} />
         <Route
+          path="projects/:projectId/reviews/:runId"
+          element={(
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <RunDetailsPage />
+            </Suspense>
+          )}
+        />
+        <Route
           path="run/:runId"
           element={(
             <Suspense fallback={<RouteLoadingFallback />}>
