@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
+from prd_pal.integrations.feishu.config_store import FeishuConnectorConfig
+
 from prd_pal.server import app as app_module
 from tests.project_review_helpers import (
     clear_project_run,
@@ -150,6 +152,11 @@ def test_feishu_events_challenge_returns_challenge(monkeypatch):
 def test_feishu_events_rejects_missing_signature_secret_when_enabled(monkeypatch):
     monkeypatch.setenv("MARRDP_FEISHU_SIGNATURE_DISABLED", "false")
     monkeypatch.delenv("MARRDP_FEISHU_WEBHOOK_SECRET", raising=False)
+    monkeypatch.setattr(
+        app_module._feishu_config_store,
+        "get",
+        lambda project_id: FeishuConnectorConfig(project_id=project_id),
+    )
     _reset_state()
 
     client = _build_client()

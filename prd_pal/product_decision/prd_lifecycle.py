@@ -128,6 +128,7 @@ class PrdLifecycleService:
         title: str = "",
         markdown: str = "",
         actor_open_id: str = "",
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[PrdVersion, WriteReceipt]:
         opportunity = await self.opportunities._require(opportunity_id)
         if opportunity.status != OpportunityCandidateStatus.approved:
@@ -160,6 +161,7 @@ class PrdLifecycleService:
             audit_id=audit_id,
             created_at=now,
             updated_at=now,
+            metadata=dict(metadata or {}),
         )
         saved = await self.repository.insert_prd_version(version)
         if not saved.ok or saved.value is None:

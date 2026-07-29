@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import sqlite3
@@ -69,6 +69,7 @@ from prd_pal.server.security import (
 )
 from prd_pal.server.sse import ProgressBroadcaster
 from prd_pal.server.pm_router import create_pm_router
+from prd_pal.server.agent_router import create_agent_router
 from prd_pal.server.project_space import create_project_space_router, new_id, now
 from prd_pal.product_decision.router import (
     build_default_sync_stack,
@@ -107,6 +108,7 @@ OUTPUTS_ROOT = Path("outputs")
 WORKSPACE_DB_PATH = Path("data") / "workspace.sqlite3"
 PROJECT_SPACE_DB_PATH = Path("data") / "project_space.sqlite3"
 PRODUCT_DECISION_DB_PATH = Path("data") / "product_decision.sqlite3"
+AGENT_DB_PATH = Path("data") / "agent.sqlite3"
 PRODUCT_DECISION_ARTIFACTS_ROOT = Path("data") / "artifacts"
 FRONTEND_DIST_ROOT = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 ARTIFACT_REVIEW_RUN_TABLE = "artifact_review_runs"
@@ -1619,6 +1621,7 @@ app.include_router(
     )
 )
 app.include_router(create_pm_router())
+app.include_router(create_agent_router(db_path=AGENT_DB_PATH, decision_db_path=PRODUCT_DECISION_DB_PATH, project_db_path=PROJECT_SPACE_DB_PATH, start_review=_enqueue_review_run))
 app.include_router(
     create_product_decision_router(
         db_path=PRODUCT_DECISION_DB_PATH,

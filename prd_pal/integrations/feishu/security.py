@@ -120,6 +120,11 @@ def verify_feishu_signature(
     resolved = settings or get_feishu_security_settings()
     if resolved.signature_disabled:
         return
+    if not resolved.webhook_secret and not resolved.encrypt_key:
+        raise FeishuSignatureVerificationError(
+            "feishu_signature_not_configured",
+            "Feishu signature verification is enabled but MARRDP_FEISHU_WEBHOOK_SECRET is not configured.",
+        )
 
     timestamp = _header(
         headers, "x-lark-request-timestamp", "x-feishu-request-timestamp"

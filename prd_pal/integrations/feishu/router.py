@@ -92,7 +92,7 @@ def create_feishu_router(
     new_id: Callable[[str], str] | None = None,
     now: Callable[[], str] | None = None,
 ) -> APIRouter:
-    _ = submit_review_run, start_workspace_review  # retained for app wiring :-)
+    _ = submit_review_run
     router = APIRouter(prefix="/api/feishu", tags=["feishu"])
 
     @router.post("/events")
@@ -195,8 +195,12 @@ def create_feishu_router(
             verify_feishu_signature(headers=request.headers, body=body)
         except FeishuSignatureVerificationError as exc:
             return _invalid_signature_response(exc)
-        _ = workspace_id, artifact_key, version_id
-        return _LEGACY_REVIEW_GONE
+        return await start_workspace_review(
+            workspace_id=workspace_id,
+            artifact_key=artifact_key,
+            version_id=version_id,
+            request=request,
+        )
 
     @router.post("/workspaces/{workspace_id}/clarification", response_model=None)
     async def submit_feishu_workspace_clarification(
