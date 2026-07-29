@@ -7,6 +7,8 @@ import {
   exportDecisionPrd,
   fetchDecisionTrace,
   fetchPilotMetrics,
+  generateDecisionDrafts,
+  confirmDecisionEvidence,
   getDecisionSyncStatus,
   listDecisionDeliveries,
   listDecisionEvidence,
@@ -24,6 +26,7 @@ import {
 import PanelErrorBoundary from '../components/PanelErrorBoundary';
 import { useToast } from '../components/ToastProvider';
 import { formatApiError } from '../utils/errors';
+import { formatSourceType, formatStatus } from '../utils/presentation';
 
 const VIEWS = [
   { id: 'evidence', label: '反馈与证据库' },
@@ -41,7 +44,7 @@ function confirmAction(message) {
 }
 
 function StatusPill({ value }) {
-  return <span className="status-pill">{value || '—'}</span>;
+  return <span className="status-pill">{formatStatus(value)}</span>;
 }
 
 function ArtifactMeta({ owner, time, status, quality, reason, links }) {
@@ -234,19 +237,23 @@ function PmConsolePage() {
     }
   }
 
-  async function handleLegacyPipeline() {
+  async function handleConfirmEvidence(evidenceId) {
     try {
-      const payload = await runPmPipeline({
-        feedback_texts: ['Legacy compat pipeline from workbench'],
-        product_hint: productId,
-        product_id: productId,
-        source: 'workbench',
-        run_quality_gate: false,
-      });
-      setLegacyResult(payload);
-      showToast(`兼容管线完成：${payload.pipeline_id}`, 'success');
+      await confirmDecisionEvidence(evidenceId);
+      showToast('证据已确认，可用于生成机会草稿。', 'success');
+      await loadWorkbench();
     } catch (err) {
-      showToast(formatApiError(err, '兼容管线失败'), 'error');
+      showToast(formatApiError(err, '确认资料失败'), 'error');
+    }
+  }
+  async function handleGenerateDrafts() {
+    try {
+      const payload = await generateDecisionDrafts({ product_id: productId, actor: openId || 'ou_pm' });
+      showToast(`已生成机会草稿： ${payload.opportunity?.id || payload.job_id}`, 'success');
+      setView('opportunities');
+      await loadWorkbench();
+    } catch (err) {
+      showToast(formatApiError(err, '请先确认至少一条有效资料'), 'error');
     }
   }
 
@@ -274,7 +281,6 @@ function PmConsolePage() {
             }}
           />
         </label>
-        <p className="empty-copy">当前身份 open_id：{openId || '未透传（将使用测试 owner）'}</p>
         <button type="button" className="ghost-button" onClick={loadWorkbench} disabled={loading}>
           {loading ? '刷新中…' : '刷新'}
         </button>
@@ -306,7 +312,7 @@ function PmConsolePage() {
                 {sources.map((source) => (
                   <li key={source.id}>
                     <strong>{source.display_name || source.id}</strong>
-                    <p>{source.source_type} · <StatusPill value={source.sync_status} /></p>
+                    <p>{formatSourceType(source.source_type)} · <StatusPill value={source.sync_status} /></p>
                     <small>{source.last_error || source.source_url || '—'}</small>
                     <div className="action-row">
                       <button type="button" className="ghost-button" onClick={() => handleRefreshSource(source.id)}>手动刷新</button>
@@ -335,7 +341,7 @@ function PmConsolePage() {
                 {!evidence.length ? <li className="empty-copy">暂无证据。</li> : null}
               </ul>
               <div className="action-row">
-                <button type="button" className="ghost-button" onClick={handleLegacyPipeline}>运行兼容 PM 管线</button>
+                <button type="button" className="ghost-button" onClick={handleGenerateDrafts}>生成基于证据的机会草稿</button>
               </div>
               {legacyResult ? <p className="empty-copy">兼容结果：{legacyResult.pipeline_id}</p> : null}
             </div>

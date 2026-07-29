@@ -1,4 +1,4 @@
-﻿function getErrorMessage(payload, fallbackMessage) {
+function getErrorMessage(payload, fallbackMessage) {
   if (payload?.detail?.message) {
     return payload.detail.message;
   }
@@ -450,3 +450,32 @@ export function updateModelPreset(presetId, payload) { return requestJson(`/api/
 export function deleteModelPreset(presetId) { return requestJson(`/api/model-presets/${encodeURIComponent(presetId)}`, { method: 'DELETE' }); }
 export function updateProject(projectId, payload) { return requestJson(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
 
+
+export function fetchDecisionWorkbenchSummary(productId) {
+  return requestJson(`/api/decision/workbench/summary?product_id=${encodeURIComponent(productId)}`);
+}
+
+export function generateDecisionDrafts(payload) {
+  return requestJson('/api/decision/drafts/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function confirmDecisionEvidence(evidenceId) {
+  return requestJson(`/api/decision/evidence/${encodeURIComponent(evidenceId)}/confirm`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+export function listAgentConversations(limit = 24) {
+  return requestJson(`/api/agent/conversations?limit=${encodeURIComponent(limit)}`);
+}
+
+export function fetchAgentConversation(conversationId) {
+  return requestJson(`/api/agent/conversations/${encodeURIComponent(conversationId)}`);
+}
+
+export function createAgentConversation(payload = {}) {
+  return requestJson('/api/agent/conversations', { method: 'POST', body: JSON.stringify(payload) });
+}

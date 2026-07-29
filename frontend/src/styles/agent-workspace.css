@@ -1,0 +1,25 @@
+.agent-workspace { max-width: 1240px; margin: 0 auto; padding: 2.5rem 0 4rem; }
+.workspace-kicker { margin: 0 0 .45rem; color: #53657d; font-size: .82rem; font-weight: 700; }
+.agent-workspace-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-soft); }
+.agent-workspace-header h1 { margin: 0; color: var(--hero-text); font-size: clamp(2rem, 4vw, 3.25rem); letter-spacing: -.04em; line-height: 1.15; }
+.agent-workspace-header p:not(.workspace-kicker) { max-width: 43rem; margin: .85rem 0 0; color: var(--text-soft); line-height: 1.7; }
+.workspace-header-actions { display: flex; gap: .75rem; flex: 0 0 auto; }
+.agent-command-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(18rem, .65fr); gap: 1.25rem; margin-top: 1.5rem; align-items: stretch; }
+.agent-command-card, .agent-starting-points, .agent-activity-section { border: 1px solid var(--border-soft); border-radius: 14px; background: var(--surface-card); }
+.agent-command-card { display: grid; gap: 1rem; padding: 1.5rem; }
+.agent-command-heading, .agent-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.agent-command-heading h2, .agent-starting-points h2, .agent-section-heading h2 { margin: 0; font-size: 1.15rem; letter-spacing: -.015em; }
+.agent-context-note, .agent-command-footer span, .agent-activity-count { color: var(--text-soft); font-size: .82rem; line-height: 1.5; }
+.agent-command-card textarea { min-height: 9.5rem; padding: 1rem; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-empty); color: var(--text-main); line-height: 1.6; resize: vertical; }
+.agent-command-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.agent-starting-points { display: grid; gap: 1rem; padding: 1.25rem; }
+.agent-starting-point-list { display: grid; gap: .5rem; }
+.agent-starting-point { display: grid; gap: .2rem; padding: .8rem; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--text-main); text-align: left; }
+.agent-starting-point:hover { border-color: var(--border-strong); background: var(--button-subtle-bg); }
+.agent-starting-point strong { font-size: .93rem; }.agent-starting-point span { color: var(--text-soft); font-size: .81rem; line-height: 1.4; }
+.agent-activity-section { margin-top: 1.25rem; padding: 1.5rem; }.agent-empty-activity { margin-top: 1.25rem; padding: 1.25rem; border-left: 3px solid #174ea6; background: var(--surface-empty); }.agent-empty-activity p { max-width: 44rem; margin: .45rem 0 0; color: var(--text-soft); line-height: 1.6; }
+.agent-timeline { display: grid; gap: 0; margin-top: 1.25rem; }.agent-timeline-entry { display: grid; gap: .55rem; padding: 1.15rem 0 1.15rem 1.25rem; border-top: 1px solid var(--border-soft); border-left: 2px solid #d5deea; }.agent-timeline-entry-user { border-left-color: #174ea6; }.agent-timeline-entry p { margin: 0; line-height: 1.6; }.agent-timeline-role { color: var(--text-soft); font-size: .8rem; font-weight: 700; }.agent-timeline-entry a { width: fit-content; color: #174ea6; font-size: .86rem; font-weight: 700; }
+.agent-decision-card { display: grid; gap: .6rem; max-width: 45rem; margin-top: .35rem; padding: 1rem; border: 1px solid #bcd6c8; border-radius: 10px; background: #f3faf5; }.agent-decision-card > div:first-child { display: flex; justify-content: space-between; gap: 1rem; }.agent-decision-card > div:first-child span { color: #216044; font-size: .82rem; font-weight: 700; }.agent-decision-card p { color: var(--text-soft); }
+[data-theme='dark'] .agent-decision-card { border-color: #315d48; background: #173326; }[data-theme='dark'] .agent-decision-card > div:first-child span { color: #9bd3b1; }
+@media (max-width: 900px) { .agent-workspace-header, .agent-command-grid { grid-template-columns: 1fr; display: grid; }.workspace-header-actions { flex-wrap: wrap; }.agent-workspace-header { align-items: start; } }
+@media (max-width: 640px) { .agent-workspace { padding-top: 1.25rem; }.workspace-header-actions, .agent-command-footer { align-items: stretch; flex-direction: column; }.agent-command-footer .primary-button { width: 100%; }.agent-command-heading { display: grid; }.agent-context-note { display: none; } }

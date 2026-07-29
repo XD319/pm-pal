@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -8,6 +8,7 @@
   useState,
 } from 'react';
 import '../styles/components.css';
+import { formatToastType } from '../utils/presentation';
 
 const ToastContext = createContext(null);
 const toastDurationMs = 3000;
@@ -73,19 +74,19 @@ export function ToastProvider({ children }) {
         {liveMessage}
       </div>
 
-      <div className="toast-region" aria-label="Notifications">
+      <div className="toast-region" aria-label="通知">
         <div className="toast-stack">
           {toasts.map((toast) => (
             <div key={toast.id} className={`toast-card toast-${toast.type}`} role="status" aria-live="polite">
               <div className="toast-copy">
-                <strong>{toast.type}</strong>
+                <strong>{formatToastType(toast.type)}</strong>
                 <p>{toast.message}</p>
               </div>
               <button
                 type="button"
                 className="toast-close"
                 onClick={() => dismissToast(toast.id)}
-                aria-label={`Dismiss ${toast.type} notification`}
+                aria-label="关闭通知"
               >
                 x
               </button>

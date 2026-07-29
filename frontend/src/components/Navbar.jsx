@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 function SunIcon() {
   return (
@@ -35,17 +35,19 @@ function Navbar({ theme, onToggleTheme }) {
   return (
     <header className="navbar-shell">
       <div className="navbar">
-        <NavLink to="/" end className="navbar-brand" aria-label="PRD Pal project space">
+        <NavLink to="/" end className="navbar-brand" aria-label="PRD Pal 产品工作台">
           <span className="navbar-logo" aria-hidden="true">PP</span>
           <span className="navbar-brand-copy">
             <strong>PRD Pal</strong>
-            <small>AI project space</small>
+            <small>产品协作工作台</small>
           </span>
         </NavLink>
 
         <div className="navbar-actions">
-          <nav className="navbar-links" aria-label="Primary">
-            <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>项目</NavLink>
+          <nav className="navbar-links" aria-label="主导航">
+            <NavLink to="/agent" className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>工作助手</NavLink>
+            <NavLink to="/projects" className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>项目</NavLink>
+            <NavLink to="/workbench" className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>决策工作台</NavLink>
             <NavLink to="/settings/providers" className={({ isActive }) => `nav-link${isActive ? ' nav-link-active' : ''}`}>模型连接</NavLink>
           </nav>
 
@@ -53,16 +55,12 @@ function Navbar({ theme, onToggleTheme }) {
             type="button"
             className="theme-toggle"
             onClick={onToggleTheme}
-            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            aria-label="切换浅色或深色模式"
+            title="切换浅色或深色模式"
           >
             <span className="theme-toggle-icon">{isDark ? <SunIcon /> : <MoonIcon />}</span>
-            <span className="theme-toggle-label">{isDark ? 'Light mode' : 'Dark mode'}</span>
+            <span className="theme-toggle-label">{isDark ? '浅色模式' : '深色模式'}</span>
           </button>
-
-          <div className="navbar-avatar-slot" aria-label="Reserved user profile space" role="img">
-            <span>U</span>
-          </div>
         </div>
       </div>
     </header>
