@@ -11,6 +11,8 @@ from typing import Any
 from dotenv import load_dotenv
 
 from .doctor import render_doctor_report, run_doctor
+from .product_decision.demo import seed_demo
+from .product_decision.repository import ProductDecisionRepository
 from .service.report_service import get_report_for_mcp
 from .service.review_service import (
     prepare_agent_handoff_for_mcp_async,
@@ -100,6 +102,9 @@ def _build_modern_parser() -> argparse.ArgumentParser:
         help="Skip HTTP checks for backend and frontend runtime endpoints",
     )
     doctor_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+    demo_parser = subparsers.add_parser("demo", help="Manage local decision-workbench demo data")
+    demo_subparsers = demo_parser.add_subparsers(dest="demo_command", required=True)
+    demo_subparsers.add_parser("seed", help="Seed idempotent demo data (no model/API key required)")
 
     return parser
 
@@ -263,11 +268,18 @@ async def _run_prepare_handoff_command(args: argparse.Namespace) -> int:
     return 1 if "error" in payload else 0
 
 
+async def _run_demo_seed_command(args: argparse.Namespace) -> int:
+    payload = await seed_demo(ProductDecisionRepository("data/product_decision.sqlite3"))
+    _emit_json({"status": "seeded", **payload})
+    return 0
+
 async def _run_async_command(args: argparse.Namespace) -> int:
     if args.command == "review":
         return await _run_review_command(args)
     if args.command == "prepare-handoff":
         return await _run_prepare_handoff_command(args)
+    if args.command == "demo" and args.demo_command == "seed":
+        return await _run_demo_seed_command(args)
     raise ValueError(f"unsupported command: {args.command}")
 
 

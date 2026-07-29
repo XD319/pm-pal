@@ -170,3 +170,8 @@ Each run writes artifacts under `outputs/<run_id>/`:
 pytest -q
 cd frontend && npm test -- --run && npm run build
 ```
+
+
+## Decision Workbench Demo
+
+Run prd-pal demo seed (no API key required), then open /workbench?product_id=demo-mobile-commerce. The workbench demonstrates the evidence -> agent draft -> human approval -> PRD quality gate -> delivery trace. See [docs/decision-workbench-demo.md](docs/decision-workbench-demo.md).

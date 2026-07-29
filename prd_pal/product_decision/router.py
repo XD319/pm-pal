@@ -58,6 +58,11 @@ class EvidenceSyncRequest(BaseModel):
     records: list[EvidenceSyncItem] = Field(default_factory=list)
 
 
+class DraftGenerationRequest(BaseModel):
+    product_id: str = Field(min_length=1)
+    evidence_ids: list[str] = Field(default_factory=list)
+    actor: str = ""
+
 class InsightCreateRequest(BaseModel):
     product_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -333,6 +338,28 @@ def create_product_decision_router(
             ) from exc
         return {"evidence": [item.model_dump(mode="json") for item in evidence]}
 
+    @router.get("/workbench/summary")
+    async def get_workbench_summary(product_id: str) -> dict:
+        repository = await repo()
+        evidence = (await repository.list_evidence(product_id=product_id, limit=1000)).value or []
+        insights = (await repository.list_insights(product_id=product_id)).value or []
+        opportunities = (await repository.list_opportunities(product_id=product_id)).value or []
+        prds = (await repository.list_prd_versions(product_id=product_id)).value or []
+        deliveries = (await repository.list_delivery_exports(product_id=product_id)).value or []
+        return {"product_id": product_id, "pending_evidence": sum(1 for item in evidence if not item.confirmed), "pending_approvals": sum(1 for item in opportunities if str(item.status) == "pending_approval"), "quality_actions": sum(1 for item in prds if str(item.status) in {"draft", "quality_checked"}), "ready_for_delivery": sum(1 for item in prds if str(item.status) == "ready_for_delivery"), "failed_deliveries": sum(1 for item in deliveries if str(item.status) in {"failed", "degraded"}), "counts": {"evidence": len(evidence), "insights": len(insights), "opportunities": len(opportunities), "prd_versions": len(prds)}}
+
+    @router.post("/drafts/generate")
+    async def generate_evidence_drafts(payload: DraftGenerationRequest) -> dict:
+        """Produce reviewable, evidence-backed drafts without approving them."""
+        repository = await repo()
+        evidence = (await repository.list_evidence(product_id=payload.product_id, limit=1000)).value or []
+        selected = [item for item in evidence if item.confirmed and (not payload.evidence_ids or item.id in payload.evidence_ids)]
+        if not selected:
+            raise HTTPException(status_code=422, detail={"code": "confirmed_evidence_required", "message": "Confirm at least one evidence item before generating drafts."})
+        refs = [item.id for item in selected]
+        insight, insight_receipt = await InsightService(repository).create_insight(product_id=payload.product_id, title="Evidence-backed product insight", summary=f"Synthesized from {len(refs)} confirmed evidence items.", theme="agent-generated", evidence_refs=refs, actor=payload.actor or "decision-agent", metadata={"agent": "evidence-synthesizer", "model": "deterministic-demo", "confidence": round(min(0.95, 0.55 + len(refs) * 0.1), 2), "pending_human_confirmation": True})
+        opportunity, opportunity_receipt = await OpportunityService(repository).create_candidate(product_id=payload.product_id, title="Investigate the evidence-backed opportunity", problem=insight.summary, users="Users represented by the confirmed evidence", value="Validate impact with the product owner.", insight_ids=[insight.id], actor=payload.actor or "decision-agent", metadata={"agent": "opportunity-planner", "model": "deterministic-demo", "confidence": 0.7, "pending_human_confirmation": True})
+        return {"status": "completed", "job_id": f"draft:{opportunity.id}", "insight": insight.model_dump(mode="json"), "opportunity": opportunity.model_dump(mode="json"), "receipts": [insight_receipt.model_dump(mode="json"), opportunity_receipt.model_dump(mode="json")], "evidence_refs": refs}
     @router.post("/insights")
     async def create_insight(payload: InsightCreateRequest) -> dict:
         service = InsightService(await repo())
