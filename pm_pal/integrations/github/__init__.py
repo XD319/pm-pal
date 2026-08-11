@@ -1,4 +1,5 @@
 """GitHub realtime connector integration for webhook sync and config."""
+
 from __future__ import annotations
 
 from .config_store import (

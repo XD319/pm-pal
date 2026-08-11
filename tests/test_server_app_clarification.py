@@ -6,12 +6,12 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from pm_pal.server import app as app_module
+from pm_pal.workspace import ArtifactRepository, ArtifactVersion, ArtifactVersionStatus
 from tests.project_review_helpers import (
     create_test_project,
     link_run_to_project,
     project_review_path,
 )
-from pm_pal.workspace import ArtifactRepository, ArtifactVersion, ArtifactVersionStatus
 
 
 def test_submit_review_clarification_updates_findings_and_returns_refreshed_result(

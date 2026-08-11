@@ -1,12 +1,18 @@
 """Project-scoped connector sync HTTP routes."""
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .service import build_sync_idempotency_key, enqueue_sync_task, list_connector_summaries
+from .service import (
+    build_sync_idempotency_key,
+    enqueue_sync_task,
+    list_connector_summaries,
+)
 from .store import ConnectorSyncStore
 
 
@@ -32,7 +38,9 @@ def register_connector_sync_routes(
         }
 
     @router.post("/projects/{project_id}/connectors/sync")
-    async def enqueue_project_connector_sync(project_id: str, payload: ManualSyncRequest):
+    async def enqueue_project_connector_sync(
+        project_id: str, payload: ManualSyncRequest
+    ):
         get_project(project_id)
         provider = payload.provider.strip().lower()
         body: dict[str, Any] = {"trigger": "manual"}

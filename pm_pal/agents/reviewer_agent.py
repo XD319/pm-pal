@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .structured_runner import run_structured_node
 from ..prompts import REVIEWER_SYSTEM_PROMPT, REVIEWER_USER_PROMPT
 from ..schemas import ReviewerOutput, validate_reviewer_output
 from ..state import ReviewState, plan_from_state
 from ..templates.registry import REVIEWER_REVIEW_PROMPT
 from ..utils.logging import get_logger
 from ..utils.trace import trace_start
+from .structured_runner import run_structured_node
 
 _AGENT = "reviewer"
 log = get_logger(_AGENT)

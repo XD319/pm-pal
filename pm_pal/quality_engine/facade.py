@@ -11,7 +11,9 @@ from pm_pal.utils.time import utc_now_iso
 
 from .models import QualityAssessment, QualityAssessmentRequest, QualityGateDecision
 
-ReviewKernel = Callable[[QualityAssessmentRequest], Awaitable[ReviewResultSummary | dict[str, Any]]]
+ReviewKernel = Callable[
+    [QualityAssessmentRequest], Awaitable[ReviewResultSummary | dict[str, Any]]
+]
 
 
 class QualityEngine:
@@ -48,7 +50,11 @@ class QualityEngine:
         request: QualityAssessmentRequest,
         result: ReviewResultSummary | dict[str, Any],
     ) -> QualityAssessment:
-        payload = result.to_dict() if isinstance(result, ReviewResultSummary) else dict(result)
+        payload = (
+            result.to_dict()
+            if isinstance(result, ReviewResultSummary)
+            else dict(result)
+        )
         findings = _dict_list(payload.get("findings"))
         risks = _dict_list(payload.get("risk_items") or payload.get("risks"))
         clarification = _clarification_items(payload)
@@ -66,7 +72,10 @@ class QualityEngine:
             prd_version_id=request.prd_version_id,
             review_run_id=str(payload.get("run_id") or payload.get("review_id") or ""),
             decision=decision,
-            quality_score=round(max(0.0, min(1.0, coverage_ratio)) * (1.0 - min(1.0, high_risk_ratio)), 4),
+            quality_score=round(
+                max(0.0, min(1.0, coverage_ratio)) * (1.0 - min(1.0, high_risk_ratio)),
+                4,
+            ),
             findings=findings,
             risks=risks,
             clarification_items=clarification,
@@ -78,7 +87,11 @@ class QualityEngine:
 
 
 def _dict_list(value: Any) -> list[dict[str, Any]]:
-    return [dict(item) for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+    return (
+        [dict(item) for item in value if isinstance(item, dict)]
+        if isinstance(value, list)
+        else []
+    )
 
 
 def _clarification_items(payload: dict[str, Any]) -> list[dict[str, Any]]:

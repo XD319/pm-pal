@@ -10,7 +10,6 @@ from pm_pal.execution.models import (
 )
 from pm_pal.utils.time import utc_now_iso as _utc_now_iso
 
-
 VALID_TASK_TRANSITIONS: dict[ExecutionTaskStatus, set[ExecutionTaskStatus]] = {
     ExecutionTaskStatus.pending: {
         ExecutionTaskStatus.assigned,

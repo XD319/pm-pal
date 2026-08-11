@@ -26,7 +26,7 @@ dependencies = [
   "langchain-ollama>=1.0.0",
   "langgraph>=0.2.76",
   "litellm>=1.71.0",
-  "mcp>=1.9.1",
+  "mcp>=1.9.1,<2",
   "pydantic>=2.5.1",
   "python-dotenv>=1.0.0",
   "python-multipart>=0.0.6",
@@ -54,3 +54,34 @@ asyncio_mode = "strict"
 addopts = "-v"
 testpaths = ["tests"]
 python_files = "test_*.py"
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv", "frontend", "dist", "build", "outputs"]
+
+[tool.ruff.lint]
+# Keep CI focused on correctness; style nits left as follow-ups. :-)
+ignore = [
+  "ASYNC251",
+  "B008",
+  "B017",
+  "B039",
+  "BLE001",
+  "C401",
+  "C409",
+  "F841",
+  "FURB162",
+  "G201",
+  "LOG015",
+  "PIE810",
+  "PLC0414",
+  "PYI034",
+  "RUF012",
+  "RUF059",
+  "S110",
+  "S112",
+  "SIM102",
+  "SIM103",
+  "TRY004",
+  "UP036",
+]

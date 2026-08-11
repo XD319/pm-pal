@@ -5,15 +5,16 @@ from pm_pal.packs import (
     ExecutionPackBuilder,
     ImplementationPack,
     ImplementationPackBuilder,
-    TestPack as HandoffTestPack,
     TestPackBuilder,
+)
+from pm_pal.packs import (
+    TestPack as HandoffTestPack,
 )
 from pm_pal.schemas.planning_skill_schema import (
     CodingAgentPromptOutput,
     ImplementationPlanOutput,
     QaPlanningOutput,
 )
-
 
 SAMPLE_REQUIREMENTS = [
     {

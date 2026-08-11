@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from ..normalizer import NormalizedRequirement
-from .base import ReviewFinding, ReviewerConfig, ReviewerResult, build_reviewer_result
+from .base import ReviewerConfig, ReviewerResult, ReviewFinding, build_reviewer_result
 from .memory_support import build_memory_evidence, build_memory_notes
 from .tooling import get_reviewer_toolbox
 

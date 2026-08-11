@@ -74,10 +74,16 @@ class EvidenceIngestBody(BaseModel):
 
 def _http_error(exc: ProjectDomainError | LookupError | ValueError) -> HTTPException:
     if isinstance(exc, ProjectDomainError):
-        return HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message})
+        return HTTPException(
+            status_code=422, detail={"code": exc.code, "message": exc.message}
+        )
     if isinstance(exc, LookupError):
-        return HTTPException(status_code=404, detail={"code": "not_found", "message": str(exc)})
-    return HTTPException(status_code=400, detail={"code": "bad_request", "message": str(exc)})
+        return HTTPException(
+            status_code=404, detail={"code": "not_found", "message": str(exc)}
+        )
+    return HTTPException(
+        status_code=400, detail={"code": "bad_request", "message": str(exc)}
+    )
 
 
 def register_project_domain_routes(
@@ -104,7 +110,11 @@ def register_project_domain_routes(
     @router.get("/projects/{project_id}/evidence-sources")
     async def list_evidence_sources(project_id: str) -> dict[str, Any]:
         require_project(project_id)
-        return {"sources": [item.model_dump() for item in repository.list_sources(project_id)]}
+        return {
+            "sources": [
+                item.model_dump() for item in repository.list_sources(project_id)
+            ]
+        }
 
     @router.get("/projects/{project_id}/evidence")
     async def list_evidence(
@@ -120,7 +130,9 @@ def register_project_domain_routes(
         return {"evidence": [item.model_dump() for item in rows]}
 
     @router.post("/projects/{project_id}/evidence")
-    async def ingest_evidence(project_id: str, body: EvidenceIngestBody) -> dict[str, Any]:
+    async def ingest_evidence(
+        project_id: str, body: EvidenceIngestBody
+    ) -> dict[str, Any]:
         require_project(project_id)
         import uuid
 
@@ -173,11 +185,15 @@ def register_project_domain_routes(
     async def list_insights(project_id: str) -> dict[str, Any]:
         require_project(project_id)
         return {
-            "insights": [item.model_dump() for item in repository.list_insights(project_id)]
+            "insights": [
+                item.model_dump() for item in repository.list_insights(project_id)
+            ]
         }
 
     @router.post("/projects/{project_id}/insights")
-    async def create_insight(project_id: str, body: InsightCreateBody) -> dict[str, Any]:
+    async def create_insight(
+        project_id: str, body: InsightCreateBody
+    ) -> dict[str, Any]:
         require_project(project_id)
         try:
             insight, receipt = insights.create_insight(
@@ -219,7 +235,10 @@ def register_project_domain_routes(
             )
         except (ProjectDomainError, LookupError, ValueError) as exc:
             raise _http_error(exc) from exc
-        return {"opportunity": opportunity.model_dump(), "receipt": receipt.model_dump()}
+        return {
+            "opportunity": opportunity.model_dump(),
+            "receipt": receipt.model_dump(),
+        }
 
     @router.post("/projects/{project_id}/opportunities/{opportunity_id}/submit")
     async def submit_opportunity(
@@ -235,7 +254,10 @@ def register_project_domain_routes(
             )
         except (ProjectDomainError, LookupError, ValueError) as exc:
             raise _http_error(exc) from exc
-        return {"opportunity": opportunity.model_dump(), "receipt": receipt.model_dump()}
+        return {
+            "opportunity": opportunity.model_dump(),
+            "receipt": receipt.model_dump(),
+        }
 
     @router.post("/projects/{project_id}/opportunities/{opportunity_id}/approve")
     async def approve_opportunity(
@@ -251,7 +273,10 @@ def register_project_domain_routes(
             )
         except (ProjectDomainError, LookupError, ValueError) as exc:
             raise _http_error(exc) from exc
-        return {"opportunity": opportunity.model_dump(), "receipt": receipt.model_dump()}
+        return {
+            "opportunity": opportunity.model_dump(),
+            "receipt": receipt.model_dump(),
+        }
 
     @router.post("/projects/{project_id}/opportunities/{opportunity_id}/reject")
     async def reject_opportunity(
@@ -267,7 +292,10 @@ def register_project_domain_routes(
             )
         except (ProjectDomainError, LookupError, ValueError) as exc:
             raise _http_error(exc) from exc
-        return {"opportunity": opportunity.model_dump(), "receipt": receipt.model_dump()}
+        return {
+            "opportunity": opportunity.model_dump(),
+            "receipt": receipt.model_dump(),
+        }
 
     @router.get("/projects/{project_id}/prd-versions")
     async def list_prd_versions(project_id: str) -> dict[str, Any]:
@@ -367,11 +395,15 @@ def register_project_domain_routes(
     async def list_deliveries(project_id: str) -> dict[str, Any]:
         require_project(project_id)
         return {
-            "deliveries": [item.model_dump() for item in repository.list_deliveries(project_id)]
+            "deliveries": [
+                item.model_dump() for item in repository.list_deliveries(project_id)
+            ]
         }
 
     @router.post("/projects/{project_id}/deliveries")
-    async def export_delivery(project_id: str, body: DeliveryExportBody) -> dict[str, Any]:
+    async def export_delivery(
+        project_id: str, body: DeliveryExportBody
+    ) -> dict[str, Any]:
         require_project(project_id)
         try:
             current = prds._require(body.prd_version_id)
@@ -391,5 +423,7 @@ def register_project_domain_routes(
     async def list_trace(project_id: str) -> dict[str, Any]:
         require_project(project_id)
         return {
-            "links": [item.model_dump() for item in repository.list_trace_links(project_id)]
+            "links": [
+                item.model_dump() for item in repository.list_trace_links(project_id)
+            ]
         }

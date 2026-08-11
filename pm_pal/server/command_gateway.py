@@ -11,12 +11,18 @@ import hashlib
 import json
 import sqlite3
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pm_pal.connectors.feishu import FeishuConnector
-from pm_pal.project_domain.models import EvidenceRecord, EvidenceSource, OpportunityStatus, PrdStatus
+from pm_pal.project_domain.models import (
+    EvidenceRecord,
+    EvidenceSource,
+    OpportunityStatus,
+    PrdStatus,
+)
 from pm_pal.project_domain.repository import ProjectDomainRepository
 from pm_pal.project_domain.services import (
     DeliveryService,
@@ -59,7 +65,9 @@ def policy_for(action: str) -> ActionPolicy:
     try:
         return POLICIES[action]
     except KeyError as exc:
-        raise CommandError("unknown_action", f"Unsupported agent action: {action}") from exc
+        raise CommandError(
+            "unknown_action", f"Unsupported agent action: {action}"
+        ) from exc
 
 
 class CommandGateway:
@@ -84,7 +92,9 @@ class CommandGateway:
             if action == "connect_feishu":
                 return await self._connect_feishu(command)
             if action in {"generate_insight", "generate_opportunity"}:
-                return await asyncio.to_thread(self._generate_insight_opportunity, command)
+                return await asyncio.to_thread(
+                    self._generate_insight_opportunity, command
+                )
             if action == "generate_prd":
                 return await asyncio.to_thread(self._generate_prd, command)
             if action == "start_review":
@@ -115,15 +125,22 @@ class CommandGateway:
         return project_id
 
     async def _connect_feishu(self, command: dict[str, Any]) -> dict[str, Any]:
-        source_url = str(dict(command.get("payload") or {}).get("source_url") or "").strip()
+        source_url = str(
+            dict(command.get("payload") or {}).get("source_url") or ""
+        ).strip()
         if not source_url:
-            raise CommandError("source_url_required", "connect_feishu requires a Feishu URL")
+            raise CommandError(
+                "source_url_required", "connect_feishu requires a Feishu URL"
+            )
         document = await asyncio.to_thread(FeishuConnector().get_content, source_url)
         command_id = self._command_id(command)
         timestamp = utc_now_iso()
         checksum = hashlib.sha256(document.content_markdown.encode("utf-8")).hexdigest()
         with self._project_connection() as conn:
-            project_id = str(command.get("project_id") or "").strip() or f"project_{uuid.uuid4().hex[:12]}"
+            project_id = (
+                str(command.get("project_id") or "").strip()
+                or f"project_{uuid.uuid4().hex[:12]}"
+            )
             existing_project = conn.execute(
                 "SELECT 1 FROM projects WHERE id=?", (project_id,)
             ).fetchone()
@@ -200,7 +217,9 @@ class CommandGateway:
                         source_id,
                     ),
                 )
-            conn.execute("UPDATE projects SET updated_at=? WHERE id=?", (timestamp, project_id))
+            conn.execute(
+                "UPDATE projects SET updated_at=? WHERE id=?", (timestamp, project_id)
+            )
             conn.commit()
 
         evidence_source_id = f"agent-source-{command_id}"
@@ -248,7 +267,11 @@ class CommandGateway:
         actor = str(command.get("actor") or "local")
         insights = self.repository.list_insights(project_id)
         insight = next(
-            (item for item in insights if item.metadata.get("command_id") == command_id),
+            (
+                item
+                for item in insights
+                if item.metadata.get("command_id") == command_id
+            ),
             None,
         )
         confirmed = self.repository.list_evidence(
@@ -268,11 +291,19 @@ class CommandGateway:
                 theme="agent",
                 evidence_refs=[item.id for item in confirmed],
                 actor=actor,
-                metadata={"command_id": command_id, "agent": True, "pending_human_confirmation": True},
+                metadata={
+                    "command_id": command_id,
+                    "agent": True,
+                    "pending_human_confirmation": True,
+                },
             )
         opportunities = self.repository.list_opportunities(project_id)
         opportunity = next(
-            (item for item in opportunities if item.metadata.get("command_id") == command_id),
+            (
+                item
+                for item in opportunities
+                if item.metadata.get("command_id") == command_id
+            ),
             None,
         )
         if opportunity is None:
@@ -285,7 +316,11 @@ class CommandGateway:
                 value=copy["value"],
                 insight_ids=[insight.id],
                 actor=actor,
-                metadata={"command_id": command_id, "agent": True, "pending_human_confirmation": True},
+                metadata={
+                    "command_id": command_id,
+                    "agent": True,
+                    "pending_human_confirmation": True,
+                },
             )
             opportunity, _ = OpportunityService(self.repository).submit_for_approval(
                 opportunity.id, actor=actor, reason="agent_generated"
@@ -303,7 +338,11 @@ class CommandGateway:
         project_id = self._require_project_id(command)
         opportunities = self.repository.list_opportunities(project_id)
         approved = next(
-            (item for item in opportunities if item.status == OpportunityStatus.approved),
+            (
+                item
+                for item in opportunities
+                if item.status == OpportunityStatus.approved
+            ),
             None,
         )
         if approved is None:
@@ -314,11 +353,17 @@ class CommandGateway:
         command_id = self._command_id(command)
         versions = self.repository.list_prd_versions(project_id)
         existing = next(
-            (item for item in versions if item.metadata.get("command_id") == command_id),
+            (
+                item
+                for item in versions
+                if item.metadata.get("command_id") == command_id
+            ),
             None,
         )
         if existing is None:
-            existing, _ = PrdLifecycleService(self.repository).create_from_approved_opportunity(
+            existing, _ = PrdLifecycleService(
+                self.repository
+            ).create_from_approved_opportunity(
                 approved.id,
                 actor=str(command["actor"]),
                 metadata={
@@ -337,7 +382,9 @@ class CommandGateway:
 
     async def _start_review(self, command: dict[str, Any]) -> dict[str, Any]:
         if self.start_review is None:
-            raise CommandError("review_executor_missing", "Review executor is not configured")
+            raise CommandError(
+                "review_executor_missing", "Review executor is not configured"
+            )
         project_id = self._require_project_id(command)
         payload = dict(command.get("payload") or {})
         source_id = str(payload.get("source_id") or "").strip()
@@ -369,16 +416,22 @@ class CommandGateway:
             if latest:
                 source_id = str(latest["id"])
         if not source_id:
-            raise CommandError("review_source_required", "A project PRD source is required")
+            raise CommandError(
+                "review_source_required", "A project PRD source is required"
+            )
         with self._project_connection() as conn:
             source = conn.execute(
                 "SELECT * FROM project_sources WHERE id=? AND project_id=? AND is_prd=1",
                 (source_id, project_id),
             ).fetchone()
         if source is None:
-            raise CommandError("review_source_not_found", "The selected PRD source no longer exists")
+            raise CommandError(
+                "review_source_not_found", "The selected PRD source no longer exists"
+            )
         if expected_checksum and str(source["checksum"] or "") != expected_checksum:
-            raise CommandError("precondition_failed", "The PRD source changed after confirmation")
+            raise CommandError(
+                "precondition_failed", "The PRD source changed after confirmation"
+            )
         result = await self.start_review(
             prd_text=source["content"] or None,
             source=source["source_url"] or None,

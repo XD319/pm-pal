@@ -4,13 +4,13 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
+from pm_pal import run_review as run_review_module
 from pm_pal.memory import MemoryRepository, MemoryService
 from pm_pal.memory.extraction import (
     extract_memory_candidates,
     process_review_memory_extraction_async,
 )
 from pm_pal.monitoring import read_audit_events
-from pm_pal import run_review as run_review_module
 
 
 def _mock_review_result() -> dict:

@@ -4,15 +4,16 @@ import asyncio
 import json
 import threading
 from collections import defaultdict
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from pm_pal.utils.time import utc_now_iso as _utc_now_iso
 
 
 class ProgressBroadcaster:
-    _instance: "ProgressBroadcaster | None" = None
+    _instance: ProgressBroadcaster | None = None
 
-    def __new__(cls) -> "ProgressBroadcaster":
+    def __new__(cls) -> ProgressBroadcaster:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._subscribers = defaultdict(set)

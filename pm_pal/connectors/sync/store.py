@@ -1,4 +1,5 @@
 """SQLite persistence for connector sync tasks, webhook dedup, and health."""
+
 from __future__ import annotations
 
 import sqlite3

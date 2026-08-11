@@ -43,7 +43,7 @@ class MemoryScope(AgentSchemaModel):
     requirement_type: SafeStrList = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_scope(self) -> "MemoryScope":
+    def validate_scope(self) -> MemoryScope:
         if self.level == MemoryScopeLevel.team and not self.team_id.strip():
             raise ValueError("team scope requires team_id")
         if self.level == MemoryScopeLevel.project and not self.project_id.strip():

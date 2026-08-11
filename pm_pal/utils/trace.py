@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pm_pal.templates import TemplateDefinition
@@ -14,13 +14,13 @@ class Span:
     Create via :func:`trace_start`; call :meth:`end` once the agent is done.
     """
 
-    __slots__ = ("agent_name", "model", "input_chars", "_start_dt", "_attrs")
+    __slots__ = ("_attrs", "_start_dt", "agent_name", "input_chars", "model")
 
     def __init__(self, agent_name: str, *, model: str, input_chars: int) -> None:
         self.agent_name = agent_name
         self.model = model
         self.input_chars = input_chars
-        self._start_dt = datetime.now(timezone.utc)
+        self._start_dt = datetime.now(UTC)
         self._attrs: dict[str, Any] = {}
 
     def set_attr(self, key: str, value: Any) -> None:
@@ -44,7 +44,7 @@ class Span:
         error_message: str = "",
     ) -> dict[str, Any]:
         """Return the finalised trace dict for this span."""
-        end_dt = datetime.now(timezone.utc)
+        end_dt = datetime.now(UTC)
         duration_ms = int((end_dt - self._start_dt).total_seconds() * 1000)
         data = {
             "start": self._start_dt.isoformat(),

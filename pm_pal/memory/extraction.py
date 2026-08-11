@@ -388,7 +388,7 @@ def _build_team_rule_candidate(
     suggested_action = str(finding.get("suggested_action", "") or "").strip()
     clarification = str(finding.get("user_clarification", "") or "").strip()
     return MemoryCandidate(
-        candidate_id=f"candidate:{run_id}:team_rule:{str(finding.get('finding_id', 'finding'))}",
+        candidate_id=f"candidate:{run_id}:team_rule:{finding.get('finding_id', 'finding')!s}",
         memory_type=MemoryType.team_rule.value,
         title=f"{reviewer.title()} review gate: {str(finding.get('title', 'Stable requirement rule') or '').strip()}",
         summary=_truncate_sentence(suggested_action or detail),
@@ -441,7 +441,7 @@ def _build_risk_pattern_candidate(
 ) -> MemoryCandidate:
     detail = str(finding.get("detail", finding.get("description", "")) or "").strip()
     return MemoryCandidate(
-        candidate_id=f"candidate:{run_id}:risk_pattern:{str(finding.get('finding_id', 'finding'))}",
+        candidate_id=f"candidate:{run_id}:risk_pattern:{finding.get('finding_id', 'finding')!s}",
         memory_type=MemoryType.risk_pattern.value,
         title=f"Reusable risk pattern: {str(finding.get('title', 'Review finding') or '').strip()}",
         summary=_truncate_sentence(detail),
@@ -538,7 +538,7 @@ def _build_clarification_candidate(
     question = str(answer.get("question", "") or "").strip()
     reviewer = str(answer.get("reviewer", "") or "").strip().lower()
     return MemoryCandidate(
-        candidate_id=f"candidate:{run_id}:clarification:{str(answer.get('question_id', 'clarification'))}",
+        candidate_id=f"candidate:{run_id}:clarification:{answer.get('question_id', 'clarification')!s}",
         memory_type=MemoryType.clarification_fact.value,
         title=f"Clarified fact: {question or 'Answered review question'}",
         summary=_truncate_sentence(answer_text),

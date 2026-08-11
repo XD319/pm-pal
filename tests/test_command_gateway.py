@@ -57,7 +57,9 @@ def test_agent_message_requires_actor_identity(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_generate_insight_requires_confirmed_evidence_and_never_confirms_it(tmp_path):
+async def test_generate_insight_requires_confirmed_evidence_and_never_confirms_it(
+    tmp_path,
+):
     db_path = tmp_path / "project_space.sqlite3"
     _seed_project(db_path, "p-1")
     repository = ProjectDomainRepository(db_path)

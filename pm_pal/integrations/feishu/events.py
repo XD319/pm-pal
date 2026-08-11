@@ -1,8 +1,10 @@
 """Parse Feishu webhook events and enqueue connector sync tasks."""
+
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pm_pal.connectors.sync import (
     ConnectorSyncStore,
@@ -12,7 +14,7 @@ from pm_pal.connectors.sync import (
     mark_event_processed,
 )
 
-from .config_store import FeishuConfigStore, FeishuDocMapping
+from .config_store import FeishuConfigStore
 from .crypto import FeishuDecryptError, decrypt_feishu_event_payload
 from .models import FeishuChallengeEvent, FeishuEventEnvelope
 
@@ -33,7 +35,9 @@ def resolve_event_payload(
         return raw_payload
     normalized_key = str(encrypt_key or "").strip()
     if not normalized_key:
-        raise FeishuDecryptError("encrypted event received but encrypt_key is not configured")
+        raise FeishuDecryptError(
+            "encrypted event received but encrypt_key is not configured"
+        )
     return decrypt_feishu_event_payload(encrypt_key=normalized_key, encrypted=encrypted)
 
 
@@ -108,7 +112,9 @@ def handle_feishu_event_payload(
         return {"kind": "challenge", "challenge": challenge.challenge}
 
     event_id = extract_event_id(payload)
-    if event_id and is_event_processed(sync_store, provider="feishu", event_id=event_id):
+    if event_id and is_event_processed(
+        sync_store, provider="feishu", event_id=event_id
+    ):
         return {"kind": "duplicate", "event_id": event_id}
 
     if not is_document_update_event(payload):

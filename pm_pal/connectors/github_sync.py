@@ -1,9 +1,15 @@
 """Sync handler that ingests GitHub resources into project materials."""
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from pm_pal.connectors.github import GitHubConfig, GitHubConnector, build_github_connector_config
+from pm_pal.connectors.github import (
+    GitHubConfig,
+    GitHubConnector,
+    build_github_connector_config,
+)
 from pm_pal.connectors.sync import register_sync_handler
 from pm_pal.integrations.github.config_store import GitHubAuthMode, GitHubConfigStore
 
@@ -50,13 +56,17 @@ def create_github_sync_handler(
     connector_factory: Callable[[GitHubConfig | None], GitHubConnector] | None = None,
     upsert_source: Callable[..., dict[str, Any]] | None = None,
 ) -> Callable[[str, str, dict[str, Any]], dict[str, Any]]:
-    def handler(project_id: str, provider: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def handler(
+        project_id: str, provider: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         _ = provider
         source_url = str(payload.get("source_url") or "").strip()
         if not source_url:
             owner = str(payload.get("owner") or "").strip()
             repo = str(payload.get("repo") or "").strip()
-            resource_kind = str(payload.get("resource_kind") or "readme").strip().lower()
+            resource_kind = (
+                str(payload.get("resource_kind") or "readme").strip().lower()
+            )
             path = str(payload.get("path") or "").strip()
             number = payload.get("number")
             if resource_kind == "file" and path:

@@ -1,4 +1,4 @@
-﻿"""CLI entry point for the requirement-review workflow."""
+"""CLI entry point for the requirement-review workflow."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import argparse
 import asyncio
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -140,7 +139,7 @@ def _review_options_from_args(args: argparse.Namespace) -> dict[str, Any]:
         "outputs_root": str(getattr(args, "outputs_root", "outputs") or "outputs"),
         "audit_context": {
             "source": "cli",
-            "tool_name": f"cli.{str(getattr(args, 'command', 'review') or 'review')}",
+            "tool_name": f"cli.{getattr(args, 'command', 'review') or 'review'!s}",
             "actor": "cli",
             "client_metadata": {},
         },

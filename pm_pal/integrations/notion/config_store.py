@@ -1,13 +1,15 @@
 """Persist Notion connector config and page mappings in project_space DB."""
+
 from __future__ import annotations
 
 import json
 import os
 import re
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 _NOTION_ID_PATTERN = re.compile(r"([0-9a-fA-F]{32})")
 
@@ -24,7 +26,7 @@ class NotionPageMapping:
         return payload
 
     @classmethod
-    def from_dict(cls, raw: Any) -> "NotionPageMapping | None":
+    def from_dict(cls, raw: Any) -> NotionPageMapping | None:
         if not isinstance(raw, dict):
             return None
         title = str(raw.get("title") or "").strip()
@@ -106,7 +108,10 @@ CREATE TABLE IF NOT EXISTS connector_configs (
 """
             )
             cols = {
-                row[1] for row in connection.execute("PRAGMA table_info(connector_configs)").fetchall()
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(connector_configs)"
+                ).fetchall()
             }
             if "last_synced_at" not in cols:
                 connection.execute(
@@ -134,20 +139,25 @@ CREATE TABLE IF NOT EXISTS connector_configs (
         normalized_project_id = str(project_id or "").strip()
         existing = self.get(normalized_project_id)
         next_base_url = existing.base_url if base_url is None else str(base_url).strip()
-        next_mappings = existing.page_mappings if page_mappings is None else page_mappings
+        next_mappings = (
+            existing.page_mappings if page_mappings is None else page_mappings
+        )
         next_secrets = existing.secrets
         if secrets is not None:
             next_secrets = (
                 NotionConnectorSecrets(
                     integration_token=secrets.integration_token
                     or existing.secrets.integration_token,
-                    signing_secret=secrets.signing_secret or existing.secrets.signing_secret,
+                    signing_secret=secrets.signing_secret
+                    or existing.secrets.signing_secret,
                 )
                 if merge_secrets
                 else secrets
             )
         next_last_synced_at = (
-            existing.last_synced_at if last_synced_at is None else str(last_synced_at).strip()
+            existing.last_synced_at
+            if last_synced_at is None
+            else str(last_synced_at).strip()
         )
         mappings_json = json.dumps(
             {
@@ -189,7 +199,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
             connection.commit()
         return self.get(normalized_project_id)
 
-    def touch_last_synced_at(self, project_id: str, *, synced_at: str, updated_at: str) -> None:
+    def touch_last_synced_at(
+        self, project_id: str, *, synced_at: str, updated_at: str
+    ) -> None:
         normalized_project_id = str(project_id or "").strip()
         existing = self.get(normalized_project_id)
         self.upsert(
@@ -202,7 +214,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
             updated_at=updated_at,
         )
 
-    def find_project_for_page_id(self, page_id: str) -> tuple[str, NotionPageMapping] | None:
+    def find_project_for_page_id(
+        self, page_id: str
+    ) -> tuple[str, NotionPageMapping] | None:
         normalized_page_id = normalize_notion_page_id(page_id)
         if not normalized_page_id:
             return None

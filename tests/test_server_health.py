@@ -21,7 +21,9 @@ def test_health_endpoint_returns_healthy_payload() -> None:
 def test_ready_endpoint_checks_startup_and_data_roots(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path / "outputs")
     monkeypatch.setattr(app_module, "DATA_ROOT", tmp_path)
-    monkeypatch.setattr(app_module, "PROJECT_SPACE_DB_PATH", tmp_path / "project_space.sqlite3")
+    monkeypatch.setattr(
+        app_module, "PROJECT_SPACE_DB_PATH", tmp_path / "project_space.sqlite3"
+    )
     (tmp_path / "outputs").mkdir(parents=True, exist_ok=True)
 
     with TestClient(app_module.app) as client:

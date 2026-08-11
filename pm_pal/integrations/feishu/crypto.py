@@ -1,4 +1,5 @@
 """Feishu event payload encryption helpers (AES-256-CBC)."""
+
 from __future__ import annotations
 
 import base64
@@ -53,7 +54,9 @@ def decrypt_feishu_event_string(*, encrypt_key: str, encrypted: str) -> str:
 
 
 def decrypt_feishu_event_payload(*, encrypt_key: str, encrypted: str) -> dict[str, Any]:
-    plaintext = decrypt_feishu_event_string(encrypt_key=encrypt_key, encrypted=encrypted)
+    plaintext = decrypt_feishu_event_string(
+        encrypt_key=encrypt_key, encrypted=encrypted
+    )
     try:
         decoded = json.loads(plaintext)
     except json.JSONDecodeError as exc:

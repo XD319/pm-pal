@@ -1,4 +1,5 @@
 """Project-scoped review route membership and wiring."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -81,7 +82,9 @@ def project_client(tmp_path: Path):
         )[0]
     )
     client = TestClient(app)
-    project = client.post("/api/projects", json={"name": "Demo", "description": ""}).json()
+    project = client.post(
+        "/api/projects", json={"name": "Demo", "description": ""}
+    ).json()
     source = client.post(
         f"/api/projects/{project['id']}/sources",
         json={"title": "PRD", "content": "# Hello", "is_prd": True},
@@ -97,9 +100,14 @@ def test_project_review_ops_require_membership(project_client):
     client, project_id, run_id, calls = project_client
 
     assert client.get(f"/api/projects/{project_id}/reviews/{run_id}").status_code == 200
-    assert client.get(f"/api/projects/{project_id}/reviews/{run_id}/result").status_code == 200
     assert (
-        client.get(f"/api/projects/{project_id}/reviews/{run_id}/progress/stream").status_code
+        client.get(f"/api/projects/{project_id}/reviews/{run_id}/result").status_code
+        == 200
+    )
+    assert (
+        client.get(
+            f"/api/projects/{project_id}/reviews/{run_id}/progress/stream"
+        ).status_code
         == 200
     )
     assert (

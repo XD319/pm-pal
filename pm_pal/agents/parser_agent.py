@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from .structured_runner import run_structured_node
 from ..prompt_quality.context_trimmer import trim_context_for_node
 from ..prompt_registry import load_prompt_template
 from ..prompts import (
@@ -18,6 +17,7 @@ from ..state import ReviewState
 from ..templates.registry import CLARIFY_PARSER_REVIEW_PROMPT, PARSER_REVIEW_PROMPT
 from ..utils.logging import get_logger
 from ..utils.trace import trace_start
+from .structured_runner import run_structured_node
 
 _AGENT = "parser"
 _DEFAULT_PROMPT_VERSION = PARSER_REVIEW_PROMPT.version

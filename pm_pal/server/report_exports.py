@@ -3,33 +3,34 @@ from __future__ import annotations
 import csv
 import html
 import json
+from datetime import UTC
 from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
 
+from pm_pal.service.report_service import RUN_ID_PATTERN
 from pm_pal.service.review_service import (
     _derive_review_findings,
     _derive_review_mode,
     _derive_reviewers_used,
 )
-from pm_pal.service.report_service import RUN_ID_PATTERN
 
 
 def _run_id_to_datetime(run_id: str):
     normalized = str(run_id or "").strip()
     if not RUN_ID_PATTERN.fullmatch(normalized):
         return None
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.strptime(normalized, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    return datetime.strptime(normalized, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
 
 
 def _timestamp_to_iso(timestamp: float) -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
 
 
 def _safe_iso_to_datetime(value: str):
@@ -108,9 +109,8 @@ def _format_report_timestamp_display(value: str) -> str:
     parsed = _safe_iso_to_datetime(value)
     if parsed is None:
         return value
-    from datetime import timezone
 
-    return parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    return parsed.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def _inline_markdown(text: str) -> str:

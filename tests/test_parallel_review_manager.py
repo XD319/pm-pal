@@ -12,7 +12,6 @@ from pm_pal.review.reviewer_agents.base import (
     ToolCall,
 )
 
-
 _MANUAL_REVIEW_TEXT = "Manual review required"
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-
 _NODE_HINTS: dict[str, tuple[str, ...]] = {
     "parser": ("must", "should", "require", "acceptance", "flow", "rule", "constraint"),
     "planner": ("dependency", "timeline", "owner", "module", "deliver", "phase"),

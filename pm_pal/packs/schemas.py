@@ -4,7 +4,7 @@ from enum import Enum
 
 from pydantic import Field
 
-from pm_pal.schemas.base import AgentSchemaModel, ID, RiskLevel
+from pm_pal.schemas.base import ID, AgentSchemaModel, RiskLevel
 
 
 class AgentHandoff(AgentSchemaModel):

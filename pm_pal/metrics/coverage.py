@@ -39,7 +39,7 @@ def compute_requirement_coverage(
           "requirement_to_tasks": dict[str, list[str]],
         }
     """
-    requirement_to_tasks: "OrderedDict[str, list[str]]" = OrderedDict()
+    requirement_to_tasks: OrderedDict[str, list[str]] = OrderedDict()
     for item in parsed_items:
         rid = item.get("id")
         if isinstance(rid, str):

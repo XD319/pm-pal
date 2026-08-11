@@ -1,9 +1,11 @@
 """Connector sync enqueue, dedup, retry, and health updates."""
+
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pm_pal.monitoring.retry import build_retry_metadata
 
@@ -52,7 +54,7 @@ def build_sync_idempotency_key(
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso_now(now_fn: Callable[[], str] | None = None) -> str:
@@ -67,13 +69,15 @@ def _parse_iso(value: str | None) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=timezone.utc)
+            return parsed.replace(tzinfo=UTC)
         return parsed
     except ValueError:
         return None
 
 
-def backoff_seconds_for_attempt(attempt: int, *, base_seconds: int = BACKOFF_BASE_SECONDS) -> int:
+def backoff_seconds_for_attempt(
+    attempt: int, *, base_seconds: int = BACKOFF_BASE_SECONDS
+) -> int:
     normalized = max(1, int(attempt or 1))
     return int(base_seconds * (2 ** (normalized - 1)))
 
@@ -81,7 +85,8 @@ def backoff_seconds_for_attempt(attempt: int, *, base_seconds: int = BACKOFF_BAS
 def public_sync_task(row: dict[str, Any]) -> dict[str, Any]:
     payload = json.loads(row.get("payload_json") or "{}")
     retry = build_retry_metadata(
-        retryable=row.get("status") in {SYNC_STATUS_FAILED, SYNC_STATUS_RETRY_SCHEDULED},
+        retryable=row.get("status")
+        in {SYNC_STATUS_FAILED, SYNC_STATUS_RETRY_SCHEDULED},
         attempt=int(row.get("attempts") or 0),
         max_attempts=DEFAULT_MAX_ATTEMPTS,
         strategy="exponential_backoff",
@@ -171,7 +176,9 @@ def mark_event_processed(
     normalized_event_id = str(event_id or "").strip()
     if not normalized_provider or not normalized_event_id:
         raise ValueError("provider and event_id are required")
-    if is_event_processed(store, provider=normalized_provider, event_id=normalized_event_id):
+    if is_event_processed(
+        store, provider=normalized_provider, event_id=normalized_event_id
+    ):
         return False
     store.execute(
         "INSERT INTO processed_events (provider, event_id, project_id, processed_at) "
@@ -322,7 +329,14 @@ def run_sync_task(
         store.execute(
             "UPDATE sync_tasks SET status=?, attempts=?, last_error=?, updated_at=?, next_retry_at=? "
             "WHERE id=?",
-            (final_status, attempt, error_message, failure_stamp, next_retry_at, task_id),
+            (
+                final_status,
+                attempt,
+                error_message,
+                failure_stamp,
+                next_retry_at,
+                task_id,
+            ),
         )
         _update_connector_health(
             store,

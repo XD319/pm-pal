@@ -1,8 +1,9 @@
 """Notion webhook HTTP routes."""
+
 from __future__ import annotations
 
 import json
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -35,7 +36,9 @@ def _resolve_event_security_settings(
         return base
     entity_id = extract_entity_id(payload)
     if entity_id:
-        match = config_store.find_project_for_page_id(normalize_notion_page_id(entity_id))
+        match = config_store.find_project_for_page_id(
+            normalize_notion_page_id(entity_id)
+        )
         if match is not None:
             project_id, _mapping = match
             config = config_store.get(project_id)
@@ -76,7 +79,9 @@ def create_notion_router(
             )
 
         if not raw_payload.get("verification_token"):
-            security_settings = _resolve_event_security_settings(config_store, raw_payload)
+            security_settings = _resolve_event_security_settings(
+                config_store, raw_payload
+            )
             try:
                 verify_notion_signature(
                     headers=request.headers,
@@ -96,13 +101,18 @@ def create_notion_router(
             )
             if outcome.get("kind") == "verification":
                 return JSONResponse(status_code=200, content=outcome)
-            return JSONResponse(status_code=200, content={"code": 0, "message": "ok", **outcome})
+            return JSONResponse(
+                status_code=200, content={"code": 0, "message": "ok", **outcome}
+            )
 
         verification_token = str(raw_payload.get("verification_token") or "").strip()
         if verification_token:
             return JSONResponse(
                 status_code=200,
-                content={"kind": "verification", "verification_token": verification_token},
+                content={
+                    "kind": "verification",
+                    "verification_token": verification_token,
+                },
             )
         return JSONResponse(status_code=200, content={"code": 0, "message": "ok"})
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -218,7 +218,7 @@ class FileBackedMemoryStore(BaseMemoryStore):
                 or "quick"
             ),
             tags=tuple(str(item) for item in requirement.modules[:4]),
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             metadata={
                 "run_id": normalized_run_id,
                 "overall_risk": summary.get("overall_risk", "unknown"),

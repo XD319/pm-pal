@@ -1,8 +1,8 @@
 """Markdown prompt templates for coding-agent handoff."""
 
 from pm_pal.templates import (
-    AdapterPromptTemplate,
     BASE_SECTION_ORDER,
+    AdapterPromptTemplate,
     get_adapter_prompt_template,
 )
 

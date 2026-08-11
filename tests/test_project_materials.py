@@ -1,4 +1,5 @@
 """Project materials upload, versioning, diff, rollback, and delete."""
+
 from __future__ import annotations
 
 from io import BytesIO
@@ -24,7 +25,9 @@ def materials_client(tmp_path: Path):
         )[0]
     )
     client = TestClient(app)
-    project = client.post("/api/projects", json={"name": "Materials", "description": ""}).json()
+    project = client.post(
+        "/api/projects", json={"name": "Materials", "description": ""}
+    ).json()
     return client, project["id"]
 
 
@@ -100,7 +103,9 @@ def test_rollback_creates_new_version(materials_client):
         f"/api/projects/{project_id}/sources",
         json={"title": "PRD", "content": "changed content", "is_prd": True},
     ).json()
-    rolled = client.post(f"/api/projects/{project_id}/sources/{v1['id']}/rollback").json()
+    rolled = client.post(
+        f"/api/projects/{project_id}/sources/{v1['id']}/rollback"
+    ).json()
 
     assert rolled["version"] == 3
     detail = client.get(f"/api/projects/{project_id}/sources/{rolled['id']}").json()
@@ -118,7 +123,10 @@ def test_delete_source(materials_client):
     deleted = client.delete(f"/api/projects/{project_id}/sources/{created['id']}")
     assert deleted.status_code == 200
     assert deleted.json()["deleted"] is True
-    assert client.get(f"/api/projects/{project_id}/sources/{created['id']}").status_code == 404
+    assert (
+        client.get(f"/api/projects/{project_id}/sources/{created['id']}").status_code
+        == 404
+    )
 
 
 def test_timeline_includes_source_mutations(materials_client):

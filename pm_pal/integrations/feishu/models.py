@@ -43,7 +43,7 @@ class FeishuSubmitRequest(BaseModel):
     metadata: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _validate_input(self) -> "FeishuSubmitRequest":
+    def _validate_input(self) -> FeishuSubmitRequest:
         has_source = bool(self.source and self.source.strip())
         if has_source:
             return self
@@ -97,7 +97,7 @@ class FeishuClarificationRequest(BaseModel):
     metadata: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _validate_input(self) -> "FeishuClarificationRequest":
+    def _validate_input(self) -> FeishuClarificationRequest:
         if not str(self.run_id or "").strip():
             raise ValueError("run_id is required.")
         if not str(self.question_id or "").strip():
@@ -161,7 +161,7 @@ class FeishuWorkspaceRoadmapUpdateRequest(BaseModel):
     metadata: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _validate_input(self) -> "FeishuWorkspaceRoadmapUpdateRequest":
+    def _validate_input(self) -> FeishuWorkspaceRoadmapUpdateRequest:
         if not self.tasks:
             raise ValueError("tasks is required.")
         return self

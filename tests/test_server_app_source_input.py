@@ -39,9 +39,7 @@ async def test_enqueue_review_keeps_legacy_prd_path_compatible(tmp_path, monkeyp
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)
     app_module._jobs.clear()
 
-    review_inputs = resolve_review_inputs(
-        ReviewCreateRequest(prd_path=str(prd_file))
-    )
+    review_inputs = resolve_review_inputs(ReviewCreateRequest(prd_path=str(prd_file)))
     result = await app_module._enqueue_review_run(
         **review_inputs,
         audit_context={

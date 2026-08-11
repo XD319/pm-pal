@@ -107,7 +107,9 @@ def test_api_key_auth_allows_project_review_with_valid_feishu_context_only(
     assert projects_response.json()["detail"]["code"] == "authentication_required"
 
 
-def test_get_review_result_allows_project_route_without_feishu_acl(tmp_path, monkeypatch):
+def test_get_review_result_allows_project_route_without_feishu_acl(
+    tmp_path, monkeypatch
+):
     run_id = "20260409T120002Z"
     _write_feishu_run_fixture(tmp_path, run_id)
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path)

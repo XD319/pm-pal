@@ -6,18 +6,19 @@ import hashlib
 import inspect
 import json
 import os
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from .cache_backend import (
-    InMemorySkillCacheBackend,
-    SQLiteSkillCacheBackend,
-    SkillCacheBackend,
-)
 from ..templates import get_template
 from ..utils.trace import trace_start
+from .cache_backend import (
+    InMemorySkillCacheBackend,
+    SkillCacheBackend,
+    SQLiteSkillCacheBackend,
+)
 
 _DEFAULT_CACHE_TTL_SEC = 300
 _CACHE_ENABLED_ENV = "SKILLS_CACHE_ENABLED"

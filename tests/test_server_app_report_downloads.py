@@ -88,9 +88,7 @@ def test_get_report_csv_returns_excel_friendly_findings_table(tmp_path, monkeypa
     client = TestClient(app_module.app)
     project_id = create_test_project(client)
     link_run_to_project(project_id, run_id)
-    response = client.get(
-        project_review_path(project_id, run_id, "/report?format=csv")
-    )
+    response = client.get(project_review_path(project_id, run_id, "/report?format=csv"))
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")

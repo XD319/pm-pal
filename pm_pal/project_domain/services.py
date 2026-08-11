@@ -85,7 +85,9 @@ class InsightService:
         refs = [str(item).strip() for item in evidence_refs if str(item or "").strip()]
         evidence_rows = [
             item
-            for item in self.repository.list_evidence(project_id, confirmed_only=True, limit=1000)
+            for item in self.repository.list_evidence(
+                project_id, confirmed_only=True, limit=1000
+            )
             if item.id in set(refs)
         ]
         if not evidence_rows:
@@ -192,7 +194,8 @@ class OpportunityService:
         candidate = OpportunityRecord(
             id=_opportunity_id(),
             project_id=project_id,
-            title=title.strip() or (insights[0].title if insights else "Untitled opportunity"),
+            title=title.strip()
+            or (insights[0].title if insights else "Untitled opportunity"),
             problem=problem or (insights[0].summary if insights else ""),
             users=users,
             value=value,
@@ -294,7 +297,9 @@ class OpportunityService:
     def _require(self, opportunity_id: str) -> OpportunityRecord:
         item = self.repository.get_opportunity(opportunity_id)
         if item is None:
-            raise ProjectDomainError("opportunity_not_found", f"Opportunity {opportunity_id} not found")
+            raise ProjectDomainError(
+                "opportunity_not_found", f"Opportunity {opportunity_id} not found"
+            )
         return item
 
     def _transition(
@@ -476,12 +481,16 @@ class PrdLifecycleService:
             if decision == str(QualityGateDecision.pass_)
             else "revise_and_reassess_or_owner_waive"
         )
-        return saved, assessment, WriteReceipt(
-            artifact_id=current.id,
-            version=current.version,
-            audit_id=audit_id,
-            next_human_action=next_action,
-            status=str(PrdStatus.quality_checked),
+        return (
+            saved,
+            assessment,
+            WriteReceipt(
+                artifact_id=current.id,
+                version=current.version,
+                audit_id=audit_id,
+                next_human_action=next_action,
+                status=str(PrdStatus.quality_checked),
+            ),
         )
 
     def approve(
@@ -503,7 +512,9 @@ class PrdLifecycleService:
                 "invalid_prd_transition",
                 "Only quality_checked PRDs can be approved.",
             )
-        if current.quality_decision and current.quality_decision != str(QualityGateDecision.pass_):
+        if current.quality_decision and current.quality_decision != str(
+            QualityGateDecision.pass_
+        ):
             raise ProjectDomainError(
                 "quality_not_passed",
                 "PRD quality gate did not pass; waive or revise first.",
@@ -541,7 +552,11 @@ class PrdLifecycleService:
         self, prd_version_id: str, *, actor: str = ""
     ) -> tuple[PrdVersionRecord, WriteReceipt]:
         current = self._require(prd_version_id)
-        if current.status not in {PrdStatus.approved, PrdStatus.waived, PrdStatus.ready_for_delivery}:
+        if current.status not in {
+            PrdStatus.approved,
+            PrdStatus.waived,
+            PrdStatus.ready_for_delivery,
+        }:
             raise ProjectDomainError(
                 "invalid_prd_transition",
                 "Only approved or waived PRDs can be marked ready for delivery.",
@@ -566,7 +581,9 @@ class PrdLifecycleService:
     def _require(self, prd_version_id: str) -> PrdVersionRecord:
         item = self.repository.get_prd_version(prd_version_id)
         if item is None:
-            raise ProjectDomainError("prd_not_found", f"PRD version {prd_version_id} not found")
+            raise ProjectDomainError(
+                "prd_not_found", f"PRD version {prd_version_id} not found"
+            )
         return item
 
     def _set_status(

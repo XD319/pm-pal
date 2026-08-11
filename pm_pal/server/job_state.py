@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -70,7 +70,7 @@ class ReviewCreateRequest(BaseModel):
     llm_kwargs: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _validate_input(self) -> "ReviewCreateRequest":
+    def _validate_input(self) -> ReviewCreateRequest:
         has_source = bool(self.source and self.source.strip())
         if has_source:
             return self
@@ -108,7 +108,7 @@ class RevisionInputRequest(BaseModel):
     meeting_notes_file_ref: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _validate_notes_input(self) -> "RevisionInputRequest":
+    def _validate_notes_input(self) -> RevisionInputRequest:
         notes_text = str(self.meeting_notes_text or "").strip()
         if notes_text:
             return self
@@ -133,12 +133,8 @@ class JobRecord:
     run_dir: Path
     status: Literal["queued", "running", "completed", "failed"] = "queued"
     current_node: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    updated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     error: str = ""
     error_code: str = ""
     report_paths: dict[str, str] = field(default_factory=dict)
@@ -167,11 +163,11 @@ def run_id_to_datetime(run_id: str) -> datetime | None:
     normalized = str(run_id or "").strip()
     if not RUN_ID_PATTERN.fullmatch(normalized):
         return None
-    return datetime.strptime(normalized, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    return datetime.strptime(normalized, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
 
 
 def timestamp_to_iso(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
 
 
 def safe_iso_to_datetime(value: str) -> datetime | None:
@@ -319,7 +315,7 @@ def resolve_runtime_llm_options(payload: ReviewCreateRequest) -> dict[str, Any]:
 def apply_progress_event(
     job: JobRecord, event: str, node_name: str, state: dict[str, Any]
 ) -> None:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     node = job.node_progress.setdefault(node_name, {"status": "pending", "runs": 0})
     if event == "start":
         job.current_node = node_name
@@ -433,8 +429,7 @@ def terminal_sse_payload(
     payload = {
         "node": "run",
         "status": str(status or "").strip(),
-        "timestamp": str(timestamp or "").strip()
-        or datetime.now(timezone.utc).isoformat(),
+        "timestamp": str(timestamp or "").strip() or datetime.now(UTC).isoformat(),
         "run_id": run_id,
         "terminal": True,
     }
@@ -692,12 +687,8 @@ def hydrate_job_record(
         run_dir=run_dir,
         status=str(hydrated.get("status", "failed") or "failed"),
         current_node=str(progress.get("current_node", "") or ""),
-        created_at=str(
-            hydrated.get("created_at", "") or datetime.now(timezone.utc).isoformat()
-        ),
-        updated_at=str(
-            hydrated.get("updated_at", "") or datetime.now(timezone.utc).isoformat()
-        ),
+        created_at=str(hydrated.get("created_at", "") or datetime.now(UTC).isoformat()),
+        updated_at=str(hydrated.get("updated_at", "") or datetime.now(UTC).isoformat()),
         error=str(error_payload.get("message", "") or progress.get("error", "") or ""),
         error_code=str(error_payload.get("code", "") or ""),
         report_paths=dict(hydrated.get("report_paths", {}) or {})
@@ -787,7 +778,7 @@ async def run_job(
     job.status = "running"
     job.error = ""
     job.error_code = ""
-    job.updated_at = datetime.now(timezone.utc).isoformat()
+    job.updated_at = datetime.now(UTC).isoformat()
     persist_job_snapshot(job)
     try:
         summary = await review_prd_text_async(
@@ -823,7 +814,7 @@ async def run_job(
         )
         job.current_node = ""
     finally:
-        job.updated_at = datetime.now(timezone.utc).isoformat()
+        job.updated_at = datetime.now(UTC).isoformat()
         persist_job_snapshot(job)
         ProgressBroadcaster().publish(
             job.run_id,

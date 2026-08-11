@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -10,7 +11,11 @@ from pm_pal.connectors.sync import ConnectorSyncStore
 
 from .config_store import FeishuConfigStore
 from .crypto import FeishuDecryptError
-from .events import decode_request_body, handle_feishu_event_payload, resolve_event_payload
+from .events import (
+    decode_request_body,
+    handle_feishu_event_payload,
+    resolve_event_payload,
+)
 from .models import (
     FeishuChallengeEvent,
     FeishuClarificationRequest,
@@ -111,7 +116,12 @@ def create_feishu_router(
         except json.JSONDecodeError:
             return JSONResponse(
                 status_code=400,
-                content={"detail": {"code": "invalid_feishu_payload", "message": "Invalid JSON body."}},
+                content={
+                    "detail": {
+                        "code": "invalid_feishu_payload",
+                        "message": "Invalid JSON body.",
+                    }
+                },
             )
 
         encrypt_key = security_settings.encrypt_key
@@ -122,7 +132,9 @@ def create_feishu_router(
         except FeishuDecryptError as exc:
             return JSONResponse(
                 status_code=400,
-                content={"detail": {"code": "invalid_feishu_payload", "message": str(exc)}},
+                content={
+                    "detail": {"code": "invalid_feishu_payload", "message": str(exc)}
+                },
             )
 
         if sync_store is not None and config_store is not None and new_id and now:
@@ -138,7 +150,9 @@ def create_feishu_router(
                     status_code=200,
                     content={"challenge": outcome["challenge"]},
                 )
-            return JSONResponse(status_code=200, content={"code": 0, "message": "ok", **outcome})
+            return JSONResponse(
+                status_code=200, content={"code": 0, "message": "ok", **outcome}
+            )
 
         envelope = FeishuEventEnvelope.model_validate(payload)
         if envelope.is_challenge():

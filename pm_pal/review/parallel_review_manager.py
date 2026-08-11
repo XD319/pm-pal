@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 import re
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any
 
 from ..memory import RetrievedMemory, format_memory_block_for_reviewer
 from .aggregator import aggregate_review_results

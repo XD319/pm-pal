@@ -1,7 +1,9 @@
 """Deterministic evidence-to-insight/opportunity copy helpers. :-)"""
+
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 
 def _clip(text: str, limit: int) -> str:
@@ -30,12 +32,13 @@ def build_insight_opportunity_copy(confirmed: Sequence[Any]) -> dict[str, str]:
     lead = snippets[0] if snippets else "已确认反馈"
     title_seed = _clip(lead, 36)
     insight_title = f"反馈洞察：{title_seed}"
-    insight_summary = (
-        f"基于 {count} 条已确认证据："
-        + ("；".join(snippets) if snippets else "暂无正文摘要。")
+    insight_summary = f"基于 {count} 条已确认证据：" + (
+        "；".join(snippets) if snippets else "暂无正文摘要。"
     )
     opportunity_title = f"改进机会：{title_seed}"
-    problem = snippets[0] if snippets else f"基于 {count} 条已确认证据，需要进一步澄清问题。"
+    problem = (
+        snippets[0] if snippets else f"基于 {count} 条已确认证据，需要进一步澄清问题。"
+    )
     users = "证据涉及的目标用户与相关角色"
     value = (
         f"优先验证并落地与「{_clip(lead, 48)}」相关的改进，降低反馈中暴露的风险。"

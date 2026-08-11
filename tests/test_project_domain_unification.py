@@ -17,7 +17,9 @@ def domain_client(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "true")
     monkeypatch.setattr(app_module, "OUTPUTS_ROOT", tmp_path / "outputs")
     monkeypatch.setattr(app_module, "DATA_ROOT", tmp_path)
-    monkeypatch.setattr(app_module, "PROJECT_SPACE_DB_PATH", tmp_path / "project_space.sqlite3")
+    monkeypatch.setattr(
+        app_module, "PROJECT_SPACE_DB_PATH", tmp_path / "project_space.sqlite3"
+    )
     (tmp_path / "outputs").mkdir(parents=True, exist_ok=True)
 
     async def enqueue_review(**kwargs):
@@ -44,7 +46,9 @@ def test_legacy_routers_removed():
 
 def test_project_pm_loop(domain_client, tmp_path: Path):
     client = domain_client
-    project = client.post("/api/projects", json={"name": "Loop", "description": ""}).json()
+    project = client.post(
+        "/api/projects", json={"name": "Loop", "description": ""}
+    ).json()
     project_id = project["id"]
 
     evidence = client.post(

@@ -8,8 +8,7 @@ from typing import Any
 
 from pydantic import Field
 
-from .base import AgentSchemaModel, ID, NormalizedBool, SafeStrList
-
+from .base import ID, AgentSchemaModel, NormalizedBool, SafeStrList
 
 # ── sub-models ────────────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 """Authenticated connector for GitHub README, file, issue, and PR ingestion."""
+
 from __future__ import annotations
 
 import base64
@@ -13,7 +14,6 @@ import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from pm_pal.connectors.auth import ConnectorAuthConfig, ConnectorAuthType
 from pm_pal.connectors.base import BaseConnector
 from pm_pal.connectors.errors import (
     ConnectorAuthError,
@@ -352,7 +352,9 @@ class GitHubConnector(BaseConnector):
             f"/app/installations/{installation_id}/access_tokens",
             headers={"Authorization": f"Bearer {jwt_token}"},
         )
-        self._raise_for_status(response, source=f"github://app/installations/{installation_id}")
+        self._raise_for_status(
+            response, source=f"github://app/installations/{installation_id}"
+        )
         body = extract_mapping(response.json_body) or {}
         token = str(body.get("token") or "").strip()
         if not token:
@@ -521,9 +523,7 @@ class GitHubConnector(BaseConnector):
             return decoded.decode("utf-8", errors="replace")
         return content_raw
 
-    def _raise_for_status(
-        self, response: GitHubHTTPResponse, *, source: str
-    ) -> None:
+    def _raise_for_status(self, response: GitHubHTTPResponse, *, source: str) -> None:
         status = int(response.status_code)
         if status == 401:
             raise GitHubAuthenticationError(

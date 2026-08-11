@@ -18,9 +18,9 @@ from .store import ConnectorSyncStore
 from .worker import ConnectorSyncWorker, claim_due_tasks
 
 __all__ = [
+    "DEFAULT_MAX_ATTEMPTS",
     "ConnectorSyncStore",
     "ConnectorSyncWorker",
-    "DEFAULT_MAX_ATTEMPTS",
     "ManualSyncRequest",
     "SyncHandler",
     "build_sync_idempotency_key",

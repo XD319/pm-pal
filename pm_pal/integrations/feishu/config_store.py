@@ -1,12 +1,14 @@
 """Persist Feishu connector app config and doc mappings in project_space DB."""
+
 from __future__ import annotations
 
 import json
 import os
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +24,7 @@ class FeishuDocMapping:
         return payload
 
     @classmethod
-    def from_dict(cls, raw: Any) -> "FeishuDocMapping | None":
+    def from_dict(cls, raw: Any) -> FeishuDocMapping | None:
         if not isinstance(raw, dict):
             return None
         title = str(raw.get("title") or "").strip()
@@ -191,7 +193,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
             connection.commit()
         return self.get(normalized_project_id)
 
-    def find_project_for_doc_token(self, doc_token: str) -> tuple[str, FeishuDocMapping] | None:
+    def find_project_for_doc_token(
+        self, doc_token: str
+    ) -> tuple[str, FeishuDocMapping] | None:
         normalized_token = str(doc_token or "").strip()
         if not normalized_token:
             return None

@@ -1,9 +1,9 @@
 """Provider settings, catalog fields, presets, connection probes, and redaction."""
+
 from __future__ import annotations
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -50,7 +50,9 @@ def test_provider_catalog_includes_extra_fields(provider_client):
     assert {"region", "deployment", "api_version"}.issubset(field_names)
     assert azure["install_hint"].startswith("pip install")
     assert azure["tier"] == "core"
-    experimental = next(item for item in payload["providers"] if item["id"] == "gigachat")
+    experimental = next(
+        item for item in payload["providers"] if item["id"] == "gigachat"
+    )
     assert experimental["tier"] == "experimental"
 
 
@@ -58,7 +60,12 @@ def test_model_preset_crud_and_default(provider_client, master_key: str):
     client, _ = provider_client
     connection = client.post(
         "/api/provider-connections",
-        json={"name": "OpenAI", "provider": "openai", "api_key": "sk-test", "base_url": "https://api.example.com/v1"},
+        json={
+            "name": "OpenAI",
+            "provider": "openai",
+            "api_key": "sk-test",
+            "base_url": "https://api.example.com/v1",
+        },
     ).json()
     create = client.post(
         "/api/model-presets",
@@ -97,7 +104,9 @@ def test_model_preset_crud_and_default(provider_client, master_key: str):
     assert deleted.json()["deleted"] is True
 
 
-def test_connection_update_delete_and_public_extra_redaction(provider_client, master_key: str):
+def test_connection_update_delete_and_public_extra_redaction(
+    provider_client, master_key: str
+):
     client, _ = provider_client
     created = client.post(
         "/api/provider-connections",
@@ -106,7 +115,11 @@ def test_connection_update_delete_and_public_extra_redaction(provider_client, ma
             "provider": "azure_openai",
             "api_key": "sk-secret",
             "base_url": "https://example.openai.azure.com",
-            "extra": {"region": "eastus", "deployment": "gpt-4o", "client_secret": "hidden"},
+            "extra": {
+                "region": "eastus",
+                "deployment": "gpt-4o",
+                "client_secret": "hidden",
+            },
         },
     ).json()
     assert created["extra"] == {"region": "eastus", "deployment": "gpt-4o"}
@@ -114,7 +127,10 @@ def test_connection_update_delete_and_public_extra_redaction(provider_client, ma
 
     patched = client.patch(
         f"/api/provider-connections/{created['id']}",
-        json={"name": "Azure prod", "extra": {"region": "westus", "deployment": "gpt-4o"}},
+        json={
+            "name": "Azure prod",
+            "extra": {"region": "westus", "deployment": "gpt-4o"},
+        },
     ).json()
     assert patched["name"] == "Azure prod"
     assert patched["extra"]["region"] == "westus"
@@ -123,7 +139,9 @@ def test_connection_update_delete_and_public_extra_redaction(provider_client, ma
     assert deleted.status_code == 200
 
 
-def test_connection_test_missing_package_returns_409(provider_client, master_key: str, monkeypatch: pytest.MonkeyPatch):
+def test_connection_test_missing_package_returns_409(
+    provider_client, master_key: str, monkeypatch: pytest.MonkeyPatch
+):
     client, _ = provider_client
     connection = client.post(
         "/api/provider-connections",
@@ -139,18 +157,26 @@ def test_connection_test_missing_package_returns_409(provider_client, master_key
     assert "pip install" in detail["install_hint"]
 
 
-def test_connection_test_uses_probe(provider_client, master_key: str, monkeypatch: pytest.MonkeyPatch):
+def test_connection_test_uses_probe(
+    provider_client, master_key: str, monkeypatch: pytest.MonkeyPatch
+):
     client, _ = provider_client
     connection = client.post(
         "/api/provider-connections",
-        json={"name": "Ollama", "provider": "ollama", "base_url": "http://127.0.0.1:11434"},
+        json={
+            "name": "Ollama",
+            "provider": "ollama",
+            "base_url": "http://127.0.0.1:11434",
+        },
     ).json()
 
     def fake_probe(provider, *, api_key="", base_url="", extra=None):
         assert provider == "ollama"
         return {"ok": True, "message": "mock probe ok"}
 
-    monkeypatch.setattr("pm_pal.server.project_space.probe_provider_connection", fake_probe)
+    monkeypatch.setattr(
+        "pm_pal.server.project_space.probe_provider_connection", fake_probe
+    )
 
     response = client.post(f"/api/provider-connections/{connection['id']}/test")
     assert response.status_code == 200
@@ -161,7 +187,12 @@ def test_project_review_uses_preset_server_side(provider_client, master_key: str
     client, captured = provider_client
     connection = client.post(
         "/api/provider-connections",
-        json={"name": "OpenAI", "provider": "openai", "api_key": "sk-test", "base_url": "https://api.example.com/v1"},
+        json={
+            "name": "OpenAI",
+            "provider": "openai",
+            "api_key": "sk-test",
+            "base_url": "https://api.example.com/v1",
+        },
     ).json()
     preset = client.post(
         "/api/model-presets",
@@ -172,7 +203,9 @@ def test_project_review_uses_preset_server_side(provider_client, master_key: str
             "is_default": True,
         },
     ).json()
-    project = client.post("/api/projects", json={"name": "Demo", "model_preset_id": preset["id"]}).json()
+    project = client.post(
+        "/api/projects", json={"name": "Demo", "model_preset_id": preset["id"]}
+    ).json()
     source = client.post(
         f"/api/projects/{project['id']}/sources",
         json={"title": "PRD", "content": "# Hello", "is_prd": True},

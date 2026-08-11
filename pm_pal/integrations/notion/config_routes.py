@@ -1,7 +1,9 @@
 """HTTP routes for project-scoped Notion connector configuration."""
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -51,7 +53,8 @@ def register_notion_connector_config_routes(
                 if page_id.strip() and item.title.strip()
             }
         provided_secrets = any(
-            value is not None for value in (payload.integration_token, payload.signing_secret)
+            value is not None
+            for value in (payload.integration_token, payload.signing_secret)
         )
         secrets = None
         if provided_secrets:

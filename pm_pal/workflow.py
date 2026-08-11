@@ -7,7 +7,7 @@ import json
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -16,21 +16,21 @@ from langgraph.graph import END, StateGraph
 
 from .agents import (
     delivery_planning_agent,
-    planner_agent,
     parser_agent,
+    planner_agent,
     reporter_agent,
     reviewer_agent,
     risk_agent,
 )
 from .memory import MemoryService, retrieve_memories_with_diagnostics_async
 from .review import decide_review_mode, run_parallel_review_async
-from .state import ReviewState, plan_from_state
 from .review.memory_store import FileBackedMemoryStore, NoopMemoryStore
 from .review.normalizer_cache import (
     FileBackedNormalizerCache,
     InMemoryNormalizerCache,
     normalize_requirement_with_cache,
 )
+from .state import ReviewState, plan_from_state
 from .templates.registry import CLARIFY_PARSER_REVIEW_PROMPT, PARSER_REVIEW_PROMPT
 from .utils.logging import get_logger
 from .utils.trace import trace_start
@@ -45,7 +45,7 @@ log = get_logger("workflow")
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _parse_iso(value: Any) -> datetime | None:
@@ -960,7 +960,7 @@ async def _run_parallel_reviewer(
         "input_token_estimate": _estimate_tokens(len(requirement_doc)),
         "output_token_estimate": _estimate_tokens(output_chars),
         "duration_ms": round((perf_counter() - started) * 1000),
-        "artifact_paths": dict((aggregated.get("artifacts") or {})),
+        "artifact_paths": dict(aggregated.get("artifacts") or {}),
         "tool_calls": list(aggregated.get("tool_calls", [])),
         "reviewer_insights": list(aggregated.get("reviewer_summaries", [])),
     }

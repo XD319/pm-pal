@@ -5,9 +5,10 @@ import json
 import os
 import shutil
 import uuid
+from collections.abc import Callable, Iterator
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 import pytest
 
@@ -21,7 +22,6 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("DEEPSEEK_API_KEY", "")
 
 from pm_pal.state import ParsedItemState, ReviewState, create_initial_state
-
 
 _TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"
 

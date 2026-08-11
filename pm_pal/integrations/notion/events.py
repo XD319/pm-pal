@@ -1,8 +1,10 @@
 """Parse Notion webhook events and enqueue connector sync tasks."""
+
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pm_pal.connectors.sync import (
     ConnectorSyncStore,
@@ -98,7 +100,9 @@ def handle_notion_event_payload(
         return {"kind": "verification", "verification_token": verification_token}
 
     event_id = extract_event_id(payload)
-    if event_id and is_event_processed(sync_store, provider="notion", event_id=event_id):
+    if event_id and is_event_processed(
+        sync_store, provider="notion", event_id=event_id
+    ):
         return {"kind": "duplicate", "event_id": event_id}
 
     if not is_content_update_event(payload):

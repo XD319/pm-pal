@@ -19,7 +19,6 @@ from pm_pal.connectors.notion import (
     NotionPermissionDeniedError,
 )
 
-
 NOTION_PAGE_ID = "0123456789abcdef0123456789abcdef"
 NOTION_PAGE_URL = f"https://workspace.notion.site/Product-Spec-{NOTION_PAGE_ID}"
 
@@ -305,7 +304,7 @@ def test_notion_connector_maps_http_errors(
 def test_notion_connector_blocks_to_markdown_covers_supported_block_types() -> None:
     connector = NotionConnector()
 
-    markdown = connector._blocks_to_markdown(  # noqa: SLF001
+    markdown = connector._blocks_to_markdown(
         [
             {
                 "type": "paragraph",
@@ -554,7 +553,7 @@ def test_notion_connector_blocks_to_markdown_covers_supported_block_types() -> N
 def test_notion_connector_extract_rich_text_formats_annotations_and_links() -> None:
     connector = NotionConnector()
 
-    rich_text = connector._extract_rich_text(  # noqa: SLF001
+    rich_text = connector._extract_rich_text(
         [
             {
                 "plain_text": "Bold",

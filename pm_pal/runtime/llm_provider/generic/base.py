@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import importlib.util
 import os
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 # Providers with Settings catalog + live probe coverage :-)
 CORE_PROVIDERS = frozenset(
@@ -97,7 +98,7 @@ class GenericLLMProvider:
         self.llm = llm
 
     @classmethod
-    def from_provider(cls, provider: str, **kwargs: Any) -> "GenericLLMProvider":
+    def from_provider(cls, provider: str, **kwargs: Any) -> GenericLLMProvider:
         try:
             factory = _provider_factories()[provider]
         except KeyError as exc:
@@ -222,7 +223,9 @@ def _build_openai(kwargs: dict[str, Any]) -> Any:
     from langchain_openai import ChatOpenAI
 
     return ChatOpenAI(
-        **_openai_compatible_kwargs(kwargs, env_base="OPENAI_BASE_URL", env_api_key="OPENAI_API_KEY")
+        **_openai_compatible_kwargs(
+            kwargs, env_base="OPENAI_BASE_URL", env_api_key="OPENAI_API_KEY"
+        )
     )
 
 

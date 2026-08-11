@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .structured_runner import run_structured_node
 from ..prompts import PLANNER_SYSTEM_PROMPT, PLANNER_USER_PROMPT
 from ..schemas import PlannerOutput, validate_planner_output
 from ..state import ReviewState
 from ..templates.registry import PLANNER_REVIEW_PROMPT
 from ..utils.logging import get_logger
 from ..utils.trace import trace_start
+from .structured_runner import run_structured_node
 
 _AGENT = "planner"
 log = get_logger(_AGENT)

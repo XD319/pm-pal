@@ -10,7 +10,7 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -21,8 +21,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pm_pal.metrics import build_runtime_trace_summary  # noqa: E402
-from pm_pal.workflow import build_review_graph  # noqa: E402
+from pm_pal.metrics import build_runtime_trace_summary
+from pm_pal.workflow import build_review_graph
 
 REQUIRED_TRACE_AGENTS = ("parser", "planner", "risk", "reviewer", "reporter")
 REQUIRED_TRACE_FIELDS = (
@@ -171,7 +171,7 @@ def _build_report_json(result: dict[str, Any], run_id: str) -> dict[str, Any]:
     report_data: dict[str, Any] = {
         "schema_version": "v1.1",
         "run_id": run_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "model": model,
         "provider": provider,
         "project": "pm_pal",
@@ -294,7 +294,7 @@ async def _run_case(
     runs_dir: Path,
 ) -> dict[str, Any]:
     case_id = str(case.get("case_id"))
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     started_perf = perf_counter()
     run_id = f"{case_id}_{started_at.strftime('%Y%m%dT%H%M%SZ')}"
     run_dir = runs_dir / run_id
@@ -366,7 +366,7 @@ async def _run_case(
             },
             "case_duration_sec": round(perf_counter() - started_perf, 4),
             "started_at": started_at.isoformat(),
-            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
         }
     except Exception as exc:
         return {
@@ -411,7 +411,7 @@ async def _run_case(
             "error": str(exc),
             "case_duration_sec": round(perf_counter() - started_perf, 4),
             "started_at": started_at.isoformat(),
-            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
         }
 
 
@@ -578,7 +578,7 @@ def _print_summary(
     runtime_summary: dict[str, Any],
     out_path: Path,
 ) -> None:
-    print("")
+    print()
     print("Eval summary")
     print(f"  profile: {profile}")
     print(f"  workers: {workers}")
@@ -624,7 +624,7 @@ async def _amain() -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     graph = build_review_graph()
-    eval_started_at = datetime.now(timezone.utc)
+    eval_started_at = datetime.now(UTC)
     eval_started_perf = perf_counter()
     case_results = await _run_cases(graph, cases, args.runs_dir, args.workers)
     wall_time_sec = perf_counter() - eval_started_perf
@@ -645,9 +645,9 @@ async def _amain() -> int:
     runtime_summary = _build_runtime_summary(case_results)
 
     eval_report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "started_at": eval_started_at.isoformat(),
-        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": datetime.now(UTC).isoformat(),
         "cases_file": str(args.cases),
         "profile": args.profile,
         "workers": args.workers,

@@ -1,7 +1,9 @@
 """Minimal live probes for saved provider connections (mockable in tests)."""
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -30,7 +32,15 @@ def probe_provider_connection(
     extra = dict(extra or {})
     if provider == "ollama":
         return _probe_ollama(base_url)
-    if provider in {"openai", "deepseek", "openrouter", "vllm_openai", "together", "xai", "aimlapi"}:
+    if provider in {
+        "openai",
+        "deepseek",
+        "openrouter",
+        "vllm_openai",
+        "together",
+        "xai",
+        "aimlapi",
+    }:
         return _probe_openai_compatible(base_url, api_key)
     if provider == "azure_openai":
         return _probe_azure(base_url, api_key, extra)
@@ -58,13 +68,17 @@ def _probe_openai_compatible(base_url: str, api_key: str) -> dict[str, Any]:
 
 
 def _probe_azure(base_url: str, api_key: str, extra: dict[str, Any]) -> dict[str, Any]:
-    deployment = str(extra.get("deployment") or extra.get("azure_deployment") or "").strip()
+    deployment = str(
+        extra.get("deployment") or extra.get("azure_deployment") or ""
+    ).strip()
     if not base_url or not deployment:
         return {
             "ok": True,
             "message": "Azure credentials stored; add base URL and deployment for a live probe.",
         }
-    url = f"{base_url.rstrip('/')}/openai/deployments/{deployment}?api-version=2024-02-01"
+    url = (
+        f"{base_url.rstrip('/')}/openai/deployments/{deployment}?api-version=2024-02-01"
+    )
     headers = {"api-key": api_key} if api_key else {}
     response = httpx.get(url, headers=headers, timeout=15.0)
     response.raise_for_status()
@@ -76,6 +90,8 @@ def _probe_anthropic(api_key: str) -> dict[str, Any]:
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
     }
-    response = httpx.get("https://api.anthropic.com/v1/models", headers=headers, timeout=15.0)
+    response = httpx.get(
+        "https://api.anthropic.com/v1/models", headers=headers, timeout=15.0
+    )
     response.raise_for_status()
     return {"ok": True, "message": "Anthropic responded to models list probe."}

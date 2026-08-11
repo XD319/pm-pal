@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from typing import Iterable
-
 
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$")
@@ -117,7 +116,7 @@ class NormalizedRequirement:
         *,
         memory_mode: str,
         reviewer_memory_context: Iterable[str] | None = None,
-    ) -> "NormalizedRequirement":
+    ) -> NormalizedRequirement:
         return replace(
             self,
             memory_mode=str(memory_mode or "off").strip().lower() or "off",

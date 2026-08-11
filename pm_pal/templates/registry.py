@@ -822,9 +822,7 @@ def register_template(
     _TEMPLATE_IDS_BY_TYPE.setdefault(template.template_type, set()).add(
         template.template_id
     )
-    if is_default is not False:
-        _DEFAULT_TEMPLATE_VERSION[template.template_id] = template.version
-    elif template.template_id not in _DEFAULT_TEMPLATE_VERSION:
+    if is_default is not False or template.template_id not in _DEFAULT_TEMPLATE_VERSION:
         _DEFAULT_TEMPLATE_VERSION[template.template_id] = template.version
     return template
 

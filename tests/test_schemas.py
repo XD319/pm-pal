@@ -17,7 +17,6 @@ from pm_pal.schemas.risk_schema import (
     validate_risk_output,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # base helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -296,16 +295,16 @@ class TestInitReExports:
         from pm_pal.schemas import (
             ParserOutput,
             PlannerOutput,
-            RevisionAgentOutput,
             ReviewerOutput,
+            RevisionAgentOutput,
+            RiskOutput,
             RoadmapDiffOutput,
             RoadmapItem,
             RoadmapOutput,
-            RiskOutput,
             validate_parser_output,
             validate_planner_output,
-            validate_revision_output,
             validate_reviewer_output,
+            validate_revision_output,
             validate_risk_output,
         )
 

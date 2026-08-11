@@ -6,13 +6,10 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 from pm_pal.integrations.feishu.config_store import FeishuConnectorConfig
-
 from pm_pal.server import app as app_module
 from tests.project_review_helpers import (
     clear_project_run,
     create_test_project,
-    link_run_to_project,
-    project_review_path,
 )
 
 
@@ -40,9 +37,7 @@ def test_desktop_default_disables_api_auth_when_unset(monkeypatch):
     validate_security_at_startup(settings)
 
 
-def test_create_project_review_accepts_authorized_bearer_request(
-    tmp_path, monkeypatch
-):
+def test_create_project_review_accepts_authorized_bearer_request(tmp_path, monkeypatch):
     run_id = "20260728T020301Z"
     monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("PM_PAL_API_BEARER_TOKEN", "shared-bearer-token")

@@ -1,4 +1,5 @@
 """Phase 5d GitHub realtime connector: events, config, signature, and sync handler."""
+
 from __future__ import annotations
 
 import hashlib
@@ -6,7 +7,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,9 @@ from pm_pal.connectors.sync import (
     mark_event_processed,
     run_sync_task,
 )
-from pm_pal.integrations.github.config_routes import register_github_connector_config_routes
+from pm_pal.integrations.github.config_routes import (
+    register_github_connector_config_routes,
+)
 from pm_pal.integrations.github.config_store import (
     GitHubAuthMode,
     GitHubConfigStore,
@@ -36,7 +39,7 @@ from pm_pal.integrations.github.security import build_github_signature
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_id(kind: str) -> str:
@@ -266,7 +269,9 @@ def test_github_issue_event_enqueues_sync(github_realtime_env):
     )
     assert response.status_code == 200
     assert response.json()["kind"] == "sync_enqueued"
-    rows = sync_store.rows("SELECT payload_json FROM sync_tasks WHERE project_id=?", (project_id,))
+    rows = sync_store.rows(
+        "SELECT payload_json FROM sync_tasks WHERE project_id=?", (project_id,)
+    )
     assert len(rows) == 1
     payload = json.loads(rows[0]["payload_json"])
     assert payload["source_url"] == "github://acme/product/issue/42"
@@ -320,7 +325,9 @@ class _FakeGitHubConnector(GitHubConnector):
             source=source,
             title=self._document.title,
             content_markdown=self._document.content,
-            metadata=SourceMetadata(mime_type="text/markdown", extra={"connector": "github"}),
+            metadata=SourceMetadata(
+                mime_type="text/markdown", extra={"connector": "github"}
+            ),
         )
 
 
@@ -378,10 +385,17 @@ def _insert_test_source(
             json.dumps(metadata_extra),
         ),
     )
-    return {"id": source_id, "version": 1, "checksum": checksum, "metadata": metadata_extra}
+    return {
+        "id": source_id,
+        "version": 1,
+        "checksum": checksum,
+        "metadata": metadata_extra,
+    }
 
 
-def test_github_sync_handler_creates_project_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_github_sync_handler_creates_project_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_sync_token")
     db_path = tmp_path / "project_space.sqlite3"
     project_store = _ProjectStore(db_path)
@@ -403,7 +417,9 @@ def test_github_sync_handler_creates_project_source(tmp_path: Path, monkeypatch:
             personal_access_token="ghp_sync_token",
         ),
         repo_mappings={
-            "acme/docs": GitHubRepoMapping(title="Synced PRD", owner="acme", repo="docs"),
+            "acme/docs": GitHubRepoMapping(
+                title="Synced PRD", owner="acme", repo="docs"
+            ),
         },
         updated_at=stamp,
     )
@@ -518,10 +534,13 @@ def test_handle_github_event_payload_marks_processed_once(tmp_path: Path):
     )
     assert first["kind"] == "sync_enqueued"
     assert second["kind"] == "duplicate"
-    assert mark_event_processed(
-        sync_store,
-        provider="github",
-        event_id="delivery-9",
-        project_id=project_id,
-        now=_utc_now,
-    ) is False
+    assert (
+        mark_event_processed(
+            sync_store,
+            provider="github",
+            event_id="delivery-9",
+            project_id=project_id,
+            now=_utc_now,
+        )
+        is False
+    )

@@ -9,7 +9,6 @@ from typing import Any
 
 from pm_pal.prompt_registry import load_prompt_template
 from pm_pal.schemas import RevisionAgentOutput, validate_revision_output
-from pm_pal.utils.llm_structured_call import llm_structured_call
 from pm_pal.service.review_service import (
     CANONICAL_REQUEST_FILENAME,
     REVISION_REQUEST_FILENAME,
@@ -21,6 +20,7 @@ from pm_pal.service.review_service import (
     _resolve_run_dir,
     _utc_now_iso,
 )
+from pm_pal.utils.llm_structured_call import llm_structured_call
 
 REVISED_PRD_FILENAME = "revised_prd.md"
 REVISION_SUMMARY_MD_FILENAME = "revision_summary.md"

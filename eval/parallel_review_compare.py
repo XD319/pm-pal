@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -19,7 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pm_pal.service.review_service import review_prd_text  # noqa: E402
+from pm_pal.service.review_service import review_prd_text
 
 CASES = [
     {
@@ -151,7 +151,7 @@ def main() -> None:
         rows.append(case_row)
 
     payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "cases": rows,
     }
     REPORT_PATH.write_text(

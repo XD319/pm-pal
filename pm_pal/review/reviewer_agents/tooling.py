@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable, Iterable
 
 from ...tools.risk_catalog_search import search_risk_catalog
 from .base import EvidenceItem, ToolCall

@@ -7,15 +7,14 @@ import re
 
 from ..normalizer import NormalizedRequirement
 from .base import (
-    ReviewFinding,
     ReviewerConfig,
     ReviewerResult,
+    ReviewFinding,
     RiskItem,
     build_reviewer_result,
 )
 from .memory_support import build_memory_evidence, build_memory_notes
 from .tooling import get_reviewer_toolbox
-
 
 _SECURITY_TOPIC_RE = re.compile(
     r"\b(security|privacy|compliance|audit|pii|payment|encryption|sso|oauth)\b",

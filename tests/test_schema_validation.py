@@ -6,9 +6,10 @@ with mocked llm_structured_call so no real API calls are made.
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from pydantic import ValidationError
-from unittest.mock import AsyncMock, patch
 
 from pm_pal.schemas.parser_schema import (
     validate_parser_output,
@@ -24,14 +25,13 @@ from pm_pal.schemas.planning_skill_schema import (
     validate_implementation_plan_output,
     validate_test_plan_generate_output,
 )
-from pm_pal.schemas.risk_schema import (
-    validate_risk_output,
-)
 from pm_pal.schemas.reviewer_schema import (
     validate_reviewer_output,
 )
+from pm_pal.schemas.risk_schema import (
+    validate_risk_output,
+)
 from pm_pal.state import create_initial_state
-
 
 # ══════════════════════════════════════════════════════════════════════════�?
 # Parser schema

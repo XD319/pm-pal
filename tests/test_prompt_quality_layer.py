@@ -7,7 +7,7 @@ from pm_pal.prompt_quality.output_validator import (
     SchemaValidationError,
     validate_output,
 )
-from pm_pal.prompt_registry import load_prompt_template, list_prompt_nodes
+from pm_pal.prompt_registry import list_prompt_nodes, load_prompt_template
 
 
 class _SampleSchema(BaseModel):

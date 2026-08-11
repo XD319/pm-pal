@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import os
@@ -6,57 +6,100 @@ import sqlite3
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from pm_pal.connectors.sync.worker import ConnectorSyncWorker
+from pm_pal.integrations.feishu import create_feishu_router
+from pm_pal.integrations.github import create_github_router
+from pm_pal.integrations.notion import create_notion_router
 from pm_pal.monitoring import (
     append_audit_event,
     resolve_audit_client_metadata,
 )
-from pm_pal.integrations.feishu import create_feishu_router
-from pm_pal.integrations.github import create_github_router
-from pm_pal.integrations.notion import create_notion_router
 from pm_pal.run_review import make_run_id
+from pm_pal.server.agent_router import create_agent_router
+from pm_pal.server.feishu_context import (
+    build_result_page_payload as _build_result_page_payload_impl,
+)
+from pm_pal.server.feishu_context import (
+    build_run_entry_context as _build_run_entry_context_impl,
+)
+from pm_pal.server.feishu_context import (
+    entry_context_path as _entry_context_path_impl,
+)
+from pm_pal.server.feishu_context import (
+    extract_result_page_context as _extract_result_page_context,
+)
+from pm_pal.server.feishu_context import (
+    is_feishu_audit_context as _is_feishu_audit_context,
+)
+from pm_pal.server.feishu_context import (
+    merge_result_page_context as _merge_result_page_context,
+)
+from pm_pal.server.feishu_context import (
+    persist_run_entry_context as _persist_run_entry_context_impl,
+)
+from pm_pal.server.feishu_context import (
+    read_run_entry_context as _read_run_entry_context,
+)
+from pm_pal.server.feishu_context import (
+    resolve_request_feishu_context as _resolve_request_feishu_context,
+)
+from pm_pal.server.feishu_context import (
+    resolve_run_feishu_context as _resolve_run_feishu_context_impl,
+)
+from pm_pal.server.feishu_context import (
+    validate_feishu_run_access as _validate_feishu_run_access,
+)
 from pm_pal.server.job_registry import JobRegistry
+from pm_pal.server.job_state import (
+    RUN_PROGRESS_FILENAME as RUN_PROGRESS_FILENAME,
+)
 from pm_pal.server.job_state import (
     ClarificationAnswerRequest,
     JobRecord,
-    RUN_PROGRESS_FILENAME as RUN_PROGRESS_FILENAME,
     RevisionConfirmRequest,
     RevisionInputRequest,
     RevisionStageRequest,
+)
+from pm_pal.server.job_state import (
     job_status_payload as _job_status_payload,
-    persisted_status_payload as _persisted_status_payload,
+)
+from pm_pal.server.job_state import (
     persist_job_snapshot as _persist_job_snapshot,
+)
+from pm_pal.server.job_state import (
+    persisted_status_payload as _persisted_status_payload,
+)
+from pm_pal.server.job_state import (
     result_unavailable_detail as _result_unavailable_detail,
+)
+from pm_pal.server.job_state import (
     run_job as _run_job_impl,
+)
+from pm_pal.server.job_state import (
     terminal_payload_for_job as _terminal_payload_for_job,
+)
+from pm_pal.server.job_state import (
     terminal_payload_for_run_dir as _terminal_payload_for_run_dir,
 )
-from pm_pal.server.feishu_context import (
-    build_result_page_payload as _build_result_page_payload_impl,
-    build_run_entry_context as _build_run_entry_context_impl,
-    entry_context_path as _entry_context_path_impl,
-    extract_result_page_context as _extract_result_page_context,
-    is_feishu_audit_context as _is_feishu_audit_context,
-    merge_result_page_context as _merge_result_page_context,
-    persist_run_entry_context as _persist_run_entry_context_impl,
-    read_run_entry_context as _read_run_entry_context,
-    resolve_request_feishu_context as _resolve_request_feishu_context,
-    resolve_run_feishu_context as _resolve_run_feishu_context_impl,
-    validate_feishu_run_access as _validate_feishu_run_access,
-)
+from pm_pal.server.project_space import create_project_space_router, new_id, now
 from pm_pal.server.report_exports import (
     build_report_csv as _build_report_csv,
+)
+from pm_pal.server.report_exports import (
     build_report_html as _build_report_html,
+)
+from pm_pal.server.report_exports import (
     load_report_payload as _load_report_payload,
 )
 from pm_pal.server.security import (
@@ -65,20 +108,14 @@ from pm_pal.server.security import (
     controlled_error_response,
     enforce_submission_rate_limit,
     is_webhook_event_path,
-    reset_submission_rate_limits as _reset_submission_rate_limits,  # noqa: F401
     security_settings,
     should_skip_request_logging,
     validate_security_at_startup,
 )
-from pm_pal.server.sse import ProgressBroadcaster
-from pm_pal.server.agent_router import create_agent_router
-from pm_pal.server.project_space import create_project_space_router, new_id, now
-from pm_pal.connectors.sync.worker import ConnectorSyncWorker
-from pm_pal.service.roadmap_service import (
-    diff_roadmap_versions,
-    generate_constrained_roadmap,
-    generate_roadmap_for_run,
+from pm_pal.server.security import (
+    reset_submission_rate_limits as _reset_submission_rate_limits,  # noqa: F401
 )
+from pm_pal.server.sse import ProgressBroadcaster
 from pm_pal.service.report_service import RUN_ID_PATTERN
 from pm_pal.service.review_service import (
     ReviewArtifactNotFoundError,
@@ -93,6 +130,11 @@ from pm_pal.service.review_service import (
     record_revision_stage_decision,
 )
 from pm_pal.service.revision_service import generate_revision_for_run_async
+from pm_pal.service.roadmap_service import (
+    diff_roadmap_versions,
+    generate_constrained_roadmap,
+    generate_roadmap_for_run,
+)
 from pm_pal.templates import TemplateRegistryError, list_template_records
 from pm_pal.utils.logging import get_logger
 from pm_pal.workspace import (
@@ -308,15 +350,6 @@ def _entry_context_path(run_dir: Path) -> Path:
     return _entry_context_path_impl(run_dir)
 
 
-def _is_feishu_audit_context(audit_context: dict[str, Any] | None) -> bool:
-    if not isinstance(audit_context, dict):
-        return False
-    if str(audit_context.get("source") or "").strip().lower() == "feishu":
-        return True
-    client_metadata = resolve_audit_client_metadata(audit_context)
-    return str(client_metadata.get("trigger_source") or "").strip().lower() == "feishu"
-
-
 def _build_run_entry_context(
     audit_context: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
@@ -347,9 +380,7 @@ def _build_result_page_payload(
 def _resolve_run_feishu_context(
     run_id: str, context: dict[str, Any] | None
 ) -> dict[str, str]:
-    return _resolve_run_feishu_context_impl(
-        run_id, context, outputs_root=OUTPUTS_ROOT
-    )
+    return _resolve_run_feishu_context_impl(run_id, context, outputs_root=OUTPUTS_ROOT)
 
 
 def _enforce_run_access(request: Request | None, run_id: str) -> None:
@@ -880,7 +911,7 @@ async def _derive_feishu_workspace_version(
     next_version_number = (
         max((item.version_number for item in same_artifact_versions), default=0) + 1
     )
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     derived_version = ArtifactVersion(
         version_id=f"{source_version.artifact_key}-v{next_version_number}-{uuid.uuid4().hex[:8]}",
         workspace_id=source_version.workspace_id,
@@ -995,7 +1026,7 @@ async def _update_feishu_workspace_roadmap(
         **existing_metadata,
         "roadmap": new_payload,
         "roadmap_diff": roadmap_diff,
-        "roadmap_updated_at": datetime.now(timezone.utc).isoformat(),
+        "roadmap_updated_at": datetime.now(UTC).isoformat(),
     }
     repository = WorkspaceRepository(WORKSPACE_DB_PATH)
     await repository.initialize()
@@ -1486,7 +1517,9 @@ async def _project_get_review_result(run_id: str) -> dict[str, Any]:
         ) from exc
 
 
-async def _project_get_artifact_preview(run_id: str, artifact_key: str) -> dict[str, Any]:
+async def _project_get_artifact_preview(
+    run_id: str, artifact_key: str
+) -> dict[str, Any]:
     try:
         return get_review_artifact_preview_payload(
             run_id=run_id,
@@ -1524,11 +1557,11 @@ async def _project_get_artifact_preview(run_id: str, artifact_key: str) -> dict[
         ) from exc
 
 
-async def _project_get_report(
-    run_id: str, format: str = "md"
-) -> Response:
+async def _project_get_report(run_id: str, format: str = "md") -> Response:
     if format not in {"md", "json", "html", "csv"}:
-        raise HTTPException(status_code=422, detail=f"Unsupported report format: {format}")
+        raise HTTPException(
+            status_code=422, detail=f"Unsupported report format: {format}"
+        )
     run_dir = OUTPUTS_ROOT / run_id
     if not run_dir.exists():
         raise HTTPException(status_code=404, detail=f"run_id not found: {run_id}")
@@ -1605,67 +1638,76 @@ _connector_sync_worker = ConnectorSyncWorker(
     now=now,
 )
 app.include_router(_project_space_router)
-app.include_router(create_feishu_router(
-    submit_review_run=_enqueue_review_run,
-    submit_clarification=_submit_feishu_clarification,
-    list_workspace_overviews=_list_feishu_workspace_overviews,
-    get_workspace_overview=_get_feishu_workspace_overview,
-    list_workspace_versions=_list_feishu_workspace_versions,
-    start_workspace_review=_start_feishu_workspace_review,
-    submit_workspace_clarification=_submit_feishu_workspace_clarification,
-    derive_workspace_version=_derive_feishu_workspace_version,
-    get_workspace_diff=_get_feishu_workspace_diff,
-    update_workspace_roadmap=_update_feishu_workspace_roadmap,
-    sync_store=_connector_sync_store,
-    config_store=_feishu_config_store,
-    new_id=new_id,
-    now=now,
-))
-app.include_router(create_github_router(
-    sync_store=_connector_sync_store,
-    config_store=_github_config_store,
-    new_id=new_id,
-    now=now,
-))
-app.include_router(create_notion_router(
-    sync_store=_connector_sync_store,
-    config_store=_notion_config_store,
-    new_id=new_id,
-    now=now,
-))
-app.include_router(create_agent_router(
-    db_path=PROJECT_SPACE_DB_PATH,
-    project_db_path=PROJECT_SPACE_DB_PATH,
-    start_review=_enqueue_review_run,
-))
+app.include_router(
+    create_feishu_router(
+        submit_review_run=_enqueue_review_run,
+        submit_clarification=_submit_feishu_clarification,
+        list_workspace_overviews=_list_feishu_workspace_overviews,
+        get_workspace_overview=_get_feishu_workspace_overview,
+        list_workspace_versions=_list_feishu_workspace_versions,
+        start_workspace_review=_start_feishu_workspace_review,
+        submit_workspace_clarification=_submit_feishu_workspace_clarification,
+        derive_workspace_version=_derive_feishu_workspace_version,
+        get_workspace_diff=_get_feishu_workspace_diff,
+        update_workspace_roadmap=_update_feishu_workspace_roadmap,
+        sync_store=_connector_sync_store,
+        config_store=_feishu_config_store,
+        new_id=new_id,
+        now=now,
+    )
+)
+app.include_router(
+    create_github_router(
+        sync_store=_connector_sync_store,
+        config_store=_github_config_store,
+        new_id=new_id,
+        now=now,
+    )
+)
+app.include_router(
+    create_notion_router(
+        sync_store=_connector_sync_store,
+        config_store=_notion_config_store,
+        new_id=new_id,
+        now=now,
+    )
+)
+app.include_router(
+    create_agent_router(
+        db_path=PROJECT_SPACE_DB_PATH,
+        project_db_path=PROJECT_SPACE_DB_PATH,
+        start_review=_enqueue_review_run,
+    )
+)
+
 
 @app.get("/api/templates")
-def list_templates(template_type: str | None = None, version: str | None = None) -> dict[str, Any]:
+def list_templates(
+    template_type: str | None = None, version: str | None = None
+) -> dict[str, Any]:
     try:
         templates = list_template_records(template_type=template_type, version=version)
         return {"templates": templates, "count": len(templates)}
     except TemplateRegistryError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+
 @app.get("/api/templates/{template_type}")
-def list_templates_by_type(template_type: str, version: str | None = None) -> dict[str, Any]:
+def list_templates_by_type(
+    template_type: str, version: str | None = None
+) -> dict[str, Any]:
     try:
         templates = list_template_records(template_type=template_type, version=version)
-        return {"template_type": template_type, "templates": templates, "count": len(templates)}
+        return {
+            "template_type": template_type,
+            "templates": templates,
+            "count": len(templates),
+        }
     except TemplateRegistryError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
 
 if FRONTEND_DIST_ROOT.exists():
     app.mount(
         "/", StaticFiles(directory=FRONTEND_DIST_ROOT, html=True), name="frontend"
     )
-
-
-
-
-
-
-
-
-
-

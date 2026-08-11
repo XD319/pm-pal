@@ -172,9 +172,7 @@ def decide_review_mode(
             selected_mode = "skip"
             skipped = True
             reasons.append("input is too sparse to support a meaningful review")
-        elif complexity_score >= resolved_config.full_score_threshold:
-            selected_mode = "full"
-        elif (
+        elif complexity_score >= resolved_config.full_score_threshold or (
             risk_keyword_hits >= resolved_config.risk_keyword_threshold
             or cross_system_hits >= resolved_config.cross_system_threshold
         ):

@@ -5,9 +5,8 @@ import hashlib
 import hmac
 import os
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
-
 
 _SIGNATURE_DISABLED_ENV = "MARRDP_FEISHU_SIGNATURE_DISABLED"
 _SIGNATURE_SECRET_ENV = "MARRDP_FEISHU_WEBHOOK_SECRET"

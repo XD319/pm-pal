@@ -9,7 +9,6 @@ from pm_pal.handoff import (
 from pm_pal.packs import ExecutionPackBuilder
 from pm_pal.service.review_service import build_handoff_prompts
 
-
 SAMPLE_REQUIREMENTS = [
     {
         "id": "REQ-101",

@@ -25,7 +25,8 @@ class JobQueue(Protocol):
 
     async def recover(
         self,
-        handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]] | None = None,
+        handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]]
+        | None = None,
     ) -> list[dict[str, Any]]: ...
 
 

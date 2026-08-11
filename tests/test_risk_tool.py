@@ -12,14 +12,15 @@ from __future__ import annotations
 
 import json
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from pm_pal.skills.executor import SkillExecutor
 from pm_pal.skills.registry import get_skill_spec
+from pm_pal.state import ReviewState
 from pm_pal.subflows.risk_analysis import run_risk_analysis_subflow
 from pm_pal.tools.risk_catalog_search import search_risk_catalog
-from pm_pal.state import ReviewState
 
 LLM_CALL_TARGET = "pm_pal.agents.structured_runner.llm_structured_call"
 CONFIG_TARGET = "pm_pal.agents.structured_runner.Config"

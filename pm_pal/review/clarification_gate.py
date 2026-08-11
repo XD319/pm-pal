@@ -231,7 +231,7 @@ def _reviewer_matches(finding: dict[str, Any], reviewer: str) -> bool:
 
 
 def _build_question_id(reviewer: str, question: str) -> str:
-    digest = hashlib.sha1(f"{reviewer}:{question}".encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha1(f"{reviewer}:{question}".encode()).hexdigest()[:12]
     return f"clarify-{digest}"
 
 

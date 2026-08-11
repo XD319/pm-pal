@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from pm_pal.server.app import app
 
-
 client = TestClient(app)
 
 

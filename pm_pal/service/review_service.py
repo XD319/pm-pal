@@ -11,13 +11,6 @@ from time import perf_counter
 from typing import Any
 
 from pm_pal.connectors import ConnectorRegistry, get_connector_error_payload
-from pm_pal.review.aggregator import _render_review_report, _render_summary
-from pm_pal.review.clarification_gate import (
-    apply_clarification_answers,
-    build_clarification_payload,
-)
-from pm_pal.review.ingress_normalization import normalize_ingress_request
-from pm_pal.review.profile_router import load_profile_pack, route_review_profile
 from pm_pal.connectors.feishu import (
     FeishuAuthenticationError,
     FeishuDocumentNotFoundError,
@@ -30,15 +23,8 @@ from pm_pal.handoff import (
     render_codex_prompt,
     render_openclaw_prompt,
 )
-from pm_pal.task_bundle_generator import generate_task_bundle_v1_artifact
-from pm_pal.templates import get_adapter_prompt_template
 from pm_pal.monitoring import append_audit_event, retry_metadata_for_status
 from pm_pal.notifications import NotificationType, dispatch_notification
-from pm_pal.service.artifact_patch_service import (
-    apply_artifact_patch_async,
-    build_clarification_to_patch_prompt,
-)
-from pm_pal.service.selective_rerun_service import build_rerun_plan_async
 from pm_pal.packs import (
     ArtifactSplitter,
     DeliveryBundle,
@@ -52,19 +38,34 @@ from pm_pal.packs import (
     reset_to_draft,
 )
 from pm_pal.packs.approval import build_approval_record
+from pm_pal.review.aggregator import _render_review_report, _render_summary
+from pm_pal.review.clarification_gate import (
+    apply_clarification_answers,
+    build_clarification_payload,
+)
+from pm_pal.review.ingress_normalization import normalize_ingress_request
+from pm_pal.review.profile_router import load_profile_pack, route_review_profile
 from pm_pal.run_review import make_unique_run_id, run_review
 from pm_pal.runtime.config.config import runtime_config_overrides
-from pm_pal.service.report_service import RUN_ID_PATTERN
 from pm_pal.server.sse import ProgressBroadcaster
+from pm_pal.service.artifact_patch_service import (
+    apply_artifact_patch_async,
+    build_clarification_to_patch_prompt,
+)
+from pm_pal.service.report_service import RUN_ID_PATTERN
+from pm_pal.service.selective_rerun_service import build_rerun_plan_async
+from pm_pal.task_bundle_generator import generate_task_bundle_v1_artifact
+from pm_pal.templates import get_adapter_prompt_template
 from pm_pal.utils.collections import copy_dict_list as _copy_dict_list
 from pm_pal.utils.json import (
     load_json_object as _load_json_object,
+)
+from pm_pal.utils.json import (
     write_json_object as _write_json_object,
 )
-from pm_pal.workspace import ArtifactRepository
-from pm_pal.workspace import ReviewWorkspaceRepository
 from pm_pal.utils.logging import RunLogContext, get_logger
 from pm_pal.utils.time import utc_now_iso as _utc_now_iso
+from pm_pal.workspace import ArtifactRepository, ReviewWorkspaceRepository
 
 log = get_logger("service.review")
 CANONICAL_REQUEST_FILENAME = "canonical_review_request.json"

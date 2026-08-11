@@ -22,7 +22,7 @@ class TraceabilityMap:
 
     def build_from_bundle(
         self, bundle: DeliveryBundle, tasks: list[ExecutionTask]
-    ) -> "TraceabilityMap":
+    ) -> TraceabilityMap:
         report_payload = self._load_report_payload(bundle)
         requirements = report_payload.get("parsed_items")
         review_results = report_payload.get("review_results")

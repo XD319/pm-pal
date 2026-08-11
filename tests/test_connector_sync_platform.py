@@ -1,8 +1,9 @@
 """Connector sync platform: dedup, retry, health, and project API."""
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ from pm_pal.connectors.sync import (
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_id(kind: str) -> str:
@@ -207,7 +208,9 @@ def test_run_sync_task_success_updates_health(sync_env):
         project_id=project_id,
         provider="feishu",
         payload={"resource": "doc-9"},
-        idempotency_key=build_sync_idempotency_key(project_id, "feishu", resource="doc-9"),
+        idempotency_key=build_sync_idempotency_key(
+            project_id, "feishu", resource="doc-9"
+        ),
         new_id=_new_id,
         now=_now,
     )
@@ -292,5 +295,7 @@ def test_manual_sync_api_enqueues_task(sync_env):
     assert duplicate.status_code == 200
     assert duplicate.json()["deduplicated"] is True
 
-    rows = sync_store.rows("SELECT id FROM sync_tasks WHERE project_id=?", (project_id,))
+    rows = sync_store.rows(
+        "SELECT id FROM sync_tasks WHERE project_id=?", (project_id,)
+    )
     assert len(rows) == 1

@@ -1,4 +1,5 @@
 """Project materials upload, versioning, diff, and rollback."""
+
 from __future__ import annotations
 
 import difflib
@@ -6,8 +7,9 @@ import hashlib
 import importlib.util
 import io
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -200,9 +202,13 @@ def create_source_version(
     )
     validation = validate_material(
         content,
-        mime_type=metadata_extra.get("mime_type", "text/plain") if metadata_extra else "text/plain",
+        mime_type=metadata_extra.get("mime_type", "text/plain")
+        if metadata_extra
+        else "text/plain",
         size_bytes=len(content.encode("utf-8")),
-        filename=metadata_extra.get("filename", f"{resolved_title}.txt") if metadata_extra else f"{resolved_title}.txt",
+        filename=metadata_extra.get("filename", f"{resolved_title}.txt")
+        if metadata_extra
+        else f"{resolved_title}.txt",
     )
     metadata = {"validation": validation, **(metadata_extra or {})}
     checksum = compute_checksum(content)
@@ -233,10 +239,17 @@ def create_source_version(
         now=now,
     )
     store.execute("UPDATE projects SET updated_at=? WHERE id=?", (stamp, project_id))
-    return {"id": source_id, "version": version, "checksum": checksum, "metadata": metadata}
+    return {
+        "id": source_id,
+        "version": version,
+        "checksum": checksum,
+        "metadata": metadata,
+    }
 
 
-def diff_sources(store: Any, project_id: str, source_id: str, against_id: str) -> dict[str, Any]:
+def diff_sources(
+    store: Any, project_id: str, source_id: str, against_id: str
+) -> dict[str, Any]:
     left = get_source_or_404(store, project_id, source_id)
     right = get_source_or_404(store, project_id, against_id)
     diff_lines = difflib.unified_diff(
@@ -309,4 +322,9 @@ def rollback_source(
         now=now,
     )
     store.execute("UPDATE projects SET updated_at=? WHERE id=?", (stamp, project_id))
-    return {"id": new_source_id, "version": version, "checksum": checksum, "metadata": metadata}
+    return {
+        "id": new_source_id,
+        "version": version,
+        "checksum": checksum,
+        "metadata": metadata,
+    }

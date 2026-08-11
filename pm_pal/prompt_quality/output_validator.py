@@ -10,7 +10,6 @@ from typing import Any
 import json_repair
 from pydantic import BaseModel, ValidationError
 
-
 JsonSchema = dict[str, Any]
 SchemaLike = type[BaseModel] | JsonSchema
 

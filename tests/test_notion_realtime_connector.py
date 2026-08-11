@@ -1,4 +1,5 @@
 """Phase 5c Notion realtime connector: events, config, security, and sync handler."""
+
 from __future__ import annotations
 
 import hashlib
@@ -7,7 +8,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,9 @@ from pm_pal.connectors.sync import (
     mark_event_processed,
     run_sync_task,
 )
-from pm_pal.integrations.notion.config_routes import register_notion_connector_config_routes
+from pm_pal.integrations.notion.config_routes import (
+    register_notion_connector_config_routes,
+)
 from pm_pal.integrations.notion.config_store import (
     NotionConfigStore,
     NotionConnectorSecrets,
@@ -39,7 +42,7 @@ NOTION_PAGE_ID = "0123456789abcdef0123456789abcdef"
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_id(kind: str) -> str:
@@ -157,7 +160,9 @@ def test_notion_events_verification_handshake(notion_realtime_env):
     assert response.json()["kind"] == "verification"
 
 
-def test_notion_events_reject_invalid_signature_when_enabled(monkeypatch, notion_realtime_env):
+def test_notion_events_reject_invalid_signature_when_enabled(
+    monkeypatch, notion_realtime_env
+):
     client, _, _, _, _, _ = notion_realtime_env
     monkeypatch.setenv("MARRDP_NOTION_SIGNATURE_DISABLED", "false")
     monkeypatch.setenv("MARRDP_NOTION_SIGNING_SECRET", "test-secret")
@@ -332,10 +337,17 @@ def _insert_test_source(
             json.dumps(metadata_extra),
         ),
     )
-    return {"id": source_id, "version": 1, "checksum": checksum, "metadata": metadata_extra}
+    return {
+        "id": source_id,
+        "version": 1,
+        "checksum": checksum,
+        "metadata": metadata_extra,
+    }
 
 
-def test_notion_sync_handler_creates_project_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_notion_sync_handler_creates_project_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setenv("MARRDP_NOTION_TOKEN", "notion-token")
     db_path = tmp_path / "project_space.sqlite3"
     project_store = _ProjectStore(db_path)
@@ -458,7 +470,12 @@ def test_notion_sync_handler_manual_compensation_skips_unchanged_pages(
     )
     assert result["status"] == "completed"
     assert result["result"]["count"] == 0
-    assert project_store.rows("SELECT id FROM project_sources WHERE project_id=?", (project_id,)) == []
+    assert (
+        project_store.rows(
+            "SELECT id FROM project_sources WHERE project_id=?", (project_id,)
+        )
+        == []
+    )
 
 
 def test_handle_notion_event_payload_marks_processed_once(tmp_path: Path):
@@ -509,7 +526,7 @@ def test_handle_notion_event_payload_marks_processed_once(tmp_path: Path):
 def test_build_notion_signature_matches_hmac():
     secret = "verification-token"
     body = b'{"id":"evt-1","type":"page.content_updated"}'
-    expected = "sha256=" + hmac.new(
-        secret.encode("utf-8"), body, hashlib.sha256
-    ).hexdigest()
+    expected = (
+        "sha256=" + hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    )
     assert build_notion_signature(signing_secret=secret, body=body) == expected

@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import pytest
 
-from pm_pal.quality_engine import QualityAssessmentRequest, QualityEngine, QualityGateDecision
+from pm_pal.quality_engine import (
+    QualityAssessmentRequest,
+    QualityEngine,
+    QualityGateDecision,
+)
 
 
 @pytest.mark.asyncio
-async def test_quality_engine_adapts_legacy_result_without_product_dependencies() -> None:
+async def test_quality_engine_adapts_legacy_result_without_product_dependencies() -> (
+    None
+):
     async def kernel(_request):
         return {
             "run_id": "review-1",
@@ -37,7 +43,11 @@ async def test_quality_engine_adapts_legacy_result_without_product_dependencies(
 @pytest.mark.asyncio
 async def test_quality_engine_blocks_high_risk_results() -> None:
     async def kernel(_request):
-        return {"high_risk_ratio": 0.2, "coverage_ratio": 1.0, "risk_items": [{"title": "Data leak"}]}
+        return {
+            "high_risk_ratio": 0.2,
+            "coverage_ratio": 1.0,
+            "risk_items": [{"title": "Data leak"}],
+        }
 
     assessment = await QualityEngine(kernel).assess(
         QualityAssessmentRequest(prd_version_id="prd-1:v2", prd_text="# Draft")

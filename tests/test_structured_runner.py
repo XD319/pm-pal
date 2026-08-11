@@ -63,7 +63,9 @@ async def test_run_structured_node_success(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_run_structured_node_schema_failure_saves_raw_output(monkeypatch, tmp_path):
+async def test_run_structured_node_schema_failure_saves_raw_output(
+    monkeypatch, tmp_path
+):
     async def fake_llm_structured_call(*, prompt, schema, metadata):
         metadata["structured_mode"] = "fallback"
         metadata["raw_output"] = '{"items":"not-a-list"}'

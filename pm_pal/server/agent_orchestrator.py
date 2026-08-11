@@ -1,4 +1,5 @@
 """Deprecated compatibility facade for agent command execution. :-)"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +14,9 @@ class AgentOrchestrator:
         *,
         project_db_path: str | Path,
         start_review: ReviewStarter | None = None,
-        decision_db_path: str | Path | None = None,  # unused; kept for call-site compatibility
+        decision_db_path: str
+        | Path
+        | None = None,  # unused; kept for call-site compatibility
     ) -> None:
         self.gateway = CommandGateway(
             project_db_path=project_db_path,

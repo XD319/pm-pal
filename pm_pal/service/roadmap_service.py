@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -458,7 +458,7 @@ def integrate_with_execution_plan(
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _load_text(path: Path) -> str:
@@ -626,7 +626,7 @@ def generate_roadmap_for_run(
             milestones=report_payload.get("milestones")
             if isinstance(report_payload.get("milestones"), list)
             else [],
-            version=f"roadmap-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+            version=f"roadmap-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
         )
         roadmap_generation = {
             "status": "generated",

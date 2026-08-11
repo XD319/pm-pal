@@ -125,9 +125,13 @@ async def test_sample_prd_trace_includes_prompt_generation_skills(
     async def fake_agent_call(*, prompt, schema, metadata):
         agent_name = metadata["agent_name"]
         if agent_name == "parser":
-            return await fake_parser_call(prompt=prompt, schema=schema, metadata=metadata)
+            return await fake_parser_call(
+                prompt=prompt, schema=schema, metadata=metadata
+            )
         if agent_name == "planner":
-            return await fake_planner_call(prompt=prompt, schema=schema, metadata=metadata)
+            return await fake_planner_call(
+                prompt=prompt, schema=schema, metadata=metadata
+            )
         if agent_name == "risk":
             return await fake_risk_call(prompt=prompt, schema=schema, metadata=metadata)
         if agent_name == "reviewer":

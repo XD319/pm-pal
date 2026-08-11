@@ -36,7 +36,6 @@ async def test_review_prd_text_async_dispatches_feishu_submitted_and_clarificati
 
     def fake_dispatch_notification(run_dir, **kwargs):
         captured.append({"run_dir": run_dir, **kwargs})
-        return None
 
     monkeypatch.setattr(review_service, "run_review", fake_run_review)
     monkeypatch.setattr(
@@ -78,7 +77,6 @@ async def test_review_prd_text_async_dispatches_feishu_failed_notification_when_
 
     def fake_dispatch_notification(run_dir, **kwargs):
         captured.append({"run_dir": run_dir, **kwargs})
-        return None
 
     monkeypatch.setattr(review_service, "run_review", fake_run_review)
     monkeypatch.setattr(

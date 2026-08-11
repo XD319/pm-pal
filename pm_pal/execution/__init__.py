@@ -9,8 +9,8 @@ from .models import (
 )
 from .router import BundleNotApprovedError, ExecutorRouter
 from .task_lifecycle import (
-    InvalidExecutionTaskTransitionError,
     VALID_TASK_TRANSITIONS,
+    InvalidExecutionTaskTransitionError,
     assign_task,
     cancel_task,
     complete_task,
@@ -21,6 +21,7 @@ from .task_lifecycle import (
 from .traceability import TraceabilityMap
 
 __all__ = [
+    "VALID_TASK_TRANSITIONS",
     "BundleNotApprovedError",
     "ExecutionEvent",
     "ExecutionMode",
@@ -30,7 +31,6 @@ __all__ = [
     "InvalidExecutionTaskTransitionError",
     "TraceLink",
     "TraceabilityMap",
-    "VALID_TASK_TRANSITIONS",
     "assign_task",
     "cancel_task",
     "complete_task",

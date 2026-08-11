@@ -23,9 +23,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import pm_pal.main as cli_module  # noqa: E402
-from pm_pal.server import app as app_module  # noqa: E402
-from tests.project_review_helpers import clear_project_run  # noqa: E402
+import pm_pal.main as cli_module
+from pm_pal.server import app as app_module
+from tests.project_review_helpers import clear_project_run
 
 
 def _run_cli_smoke(workspace: Path) -> dict[str, object]:
@@ -65,9 +65,7 @@ def _run_cli_smoke(workspace: Path) -> dict[str, object]:
     try:
         cli_module.review_prd_text_async = AsyncMock(return_value=summary)
         with redirect_stdout(buffer):
-            exit_code = cli_module.run_cli(
-                ["review", "--input", str(input_path)]
-            )
+            exit_code = cli_module.run_cli(["review", "--input", str(input_path)])
     finally:
         cli_module.review_prd_text_async = original_review
 
@@ -160,9 +158,7 @@ def _run_fastapi_smoke(workspace: Path) -> dict[str, object]:
             json={"source_id": source_id, "mode": "quick"},
         )
         time.sleep(0.05)
-        status_response = client.get(
-            f"/api/projects/{project_id}/reviews/{run_id}"
-        )
+        status_response = client.get(f"/api/projects/{project_id}/reviews/{run_id}")
         result_response = client.get(
             f"/api/projects/{project_id}/reviews/{run_id}/result"
         )

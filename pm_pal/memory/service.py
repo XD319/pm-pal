@@ -42,7 +42,7 @@ class MemoryService:
         self.repository = repository
 
     @classmethod
-    def from_db_path(cls, db_path: str | Path | None = None) -> "MemoryService":
+    def from_db_path(cls, db_path: str | Path | None = None) -> MemoryService:
         return cls(MemoryRepository(db_path or DEFAULT_MEMORY_DB_PATH))
 
     async def initialize(self) -> bool:

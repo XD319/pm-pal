@@ -24,13 +24,18 @@ logging.getLogger().addHandler(file_handler)
 # Create logger instance
 logger = logging.getLogger(__name__)
 
-from pm_pal.server.app import app  # noqa: E402
+from pm_pal.server.app import app
 
 if __name__ == "__main__":
     import uvicorn
 
     # Desktop client binds loopback by default; shared/container deploys override host. :-)
-    host = os.getenv("PM_PAL_HOST", os.getenv("MARRDP_HOST", "127.0.0.1")).strip() or "127.0.0.1"
-    port = int(os.getenv("PM_PAL_PORT", os.getenv("MARRDP_PORT", "8000")).strip() or "8000")
+    host = (
+        os.getenv("PM_PAL_HOST", os.getenv("MARRDP_HOST", "127.0.0.1")).strip()
+        or "127.0.0.1"
+    )
+    port = int(
+        os.getenv("PM_PAL_PORT", os.getenv("MARRDP_PORT", "8000")).strip() or "8000"
+    )
     logger.info("Starting server on %s:%s ...", host, port)
     uvicorn.run(app, host=host, port=port)

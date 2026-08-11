@@ -1,9 +1,11 @@
 """Sync handler that ingests Notion pages into project materials."""
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from pm_pal.connectors.auth import ConnectorAuthConfig, ConnectorAuthType
 from pm_pal.connectors.notion import NotionConfig, NotionConnector
@@ -22,13 +24,15 @@ def _parse_iso(value: str | None) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=timezone.utc)
+            return parsed.replace(tzinfo=UTC)
         return parsed
     except ValueError:
         return None
 
 
-def _build_connector_config(config_store: NotionConfigStore, project_id: str) -> NotionConfig | None:
+def _build_connector_config(
+    config_store: NotionConfigStore, project_id: str
+) -> NotionConfig | None:
     config = config_store.get(project_id)
     token = config.resolved_integration_token()
     if not token:
@@ -143,7 +147,9 @@ def create_notion_sync_handler(
     to skip pages whose last_edited_time is not newer than since.
     """
 
-    def handler(project_id: str, provider: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def handler(
+        project_id: str, provider: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         _ = provider
         connector_config = _build_connector_config(config_store, project_id)
         connector = (
@@ -163,7 +169,9 @@ def create_notion_sync_handler(
         if page_id:
             mapping = config.page_mappings.get(page_id)
             if mapping is None:
-                raise ValueError(f"Notion page mapping not found for page_id: {page_id}")
+                raise ValueError(
+                    f"Notion page mapping not found for page_id: {page_id}"
+                )
             result = _sync_single_page(
                 project_store=project_store,
                 project_id=project_id,
@@ -177,8 +185,14 @@ def create_notion_sync_handler(
                 since=since,
             )
             if result is None:
-                return {"skipped": True, "page_id": page_id, "reason": "not_edited_since"}
-            config_store.touch_last_synced_at(project_id, synced_at=now(), updated_at=now())
+                return {
+                    "skipped": True,
+                    "page_id": page_id,
+                    "reason": "not_edited_since",
+                }
+            config_store.touch_last_synced_at(
+                project_id, synced_at=now(), updated_at=now()
+            )
             return result
 
         if trigger != "manual":
@@ -201,7 +215,11 @@ def create_notion_sync_handler(
             if page_result is not None:
                 synced_pages.append(page_result)
         config_store.touch_last_synced_at(project_id, synced_at=now(), updated_at=now())
-        return {"synced_pages": synced_pages, "count": len(synced_pages), "since": since}
+        return {
+            "synced_pages": synced_pages,
+            "count": len(synced_pages),
+            "since": since,
+        }
 
     return handler
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pm_pal.service import review_service
 from pm_pal.runtime.config.config import Config
+from pm_pal.service import review_service
 
 
 @pytest.mark.asyncio

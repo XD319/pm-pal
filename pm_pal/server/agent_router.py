@@ -1,11 +1,12 @@
 """Conversation-first PM agent API backed by Project Space Command Gateway. :-)"""
+
 from __future__ import annotations
 
 import json
 import re
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,11 +15,16 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from pm_pal.project_domain.repository import ProjectDomainRepository
-from pm_pal.server.command_gateway import CommandError, CommandGateway, ReviewStarter, policy_for
+from pm_pal.server.command_gateway import (
+    CommandError,
+    CommandGateway,
+    ReviewStarter,
+    policy_for,
+)
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _id(prefix: str) -> str:
@@ -45,7 +51,10 @@ class TaskConfirmRequest(BaseModel):
 
 ACTION_META: dict[str, tuple[str, str]] = {
     "connect_feishu": ("连接飞书文档", "已识别飞书文档；确认后会写入当前项目。"),
-    "generate_opportunity": ("汇总反馈并生成机会草案", "将基于已确认的证据生成可编辑草案。"),
+    "generate_opportunity": (
+        "汇总反馈并生成机会草案",
+        "将基于已确认的证据生成可编辑草案。",
+    ),
     "start_review": ("发起 PRD 评审", "已准备评审命令，确认后会发起评审。"),
     "prepare_delivery": ("准备交付包", "将检查可交付 PRD 并返回交付入口。"),
     "generate_prd": ("生成正式 PRD 草案", "将基于已批准机会创建正式 PRD 草案。"),
@@ -136,7 +145,9 @@ class CommandStore:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    def get_command(self, conn: sqlite3.Connection, command_id: str) -> dict[str, Any] | None:
+    def get_command(
+        self, conn: sqlite3.Connection, command_id: str
+    ) -> dict[str, Any] | None:
         row = conn.execute(
             "SELECT * FROM agent_commands WHERE command_id=?", (command_id,)
         ).fetchone()
@@ -180,7 +191,11 @@ class CommandStore:
         error: CommandError | Exception | None = None,
     ) -> None:
         now = _now()
-        error_code = error.code if isinstance(error, CommandError) else ("execution_failed" if error else "")
+        error_code = (
+            error.code
+            if isinstance(error, CommandError)
+            else ("execution_failed" if error else "")
+        )
         error_message = str(error) if error else ""
         conn.execute(
             "UPDATE agent_commands SET status=?, result_json=?, error_code=?, error_message=?, "
@@ -209,7 +224,9 @@ def create_agent_router(
     gateway = CommandGateway(project_db_path=path, start_review=start_review)
 
     def fail(code: str, message: str, status: int = 422) -> HTTPException:
-        return HTTPException(status_code=status, detail={"code": code, "message": message})
+        return HTTPException(
+            status_code=status, detail={"code": code, "message": message}
+        )
 
     def task_payload(row: sqlite3.Row, conn: sqlite3.Connection) -> dict[str, Any]:
         details = json.loads(row["details_json"] or "{}")
@@ -245,7 +262,9 @@ def create_agent_router(
             "updated_at": row["updated_at"],
         }
 
-    def conversation_payload(conn: sqlite3.Connection, conversation_id: str) -> dict[str, Any]:
+    def conversation_payload(
+        conn: sqlite3.Connection, conversation_id: str
+    ) -> dict[str, Any]:
         conversation = conn.execute(
             "SELECT * FROM agent_conversations WHERE id=?", (conversation_id,)
         ).fetchone()
@@ -348,10 +367,18 @@ def create_agent_router(
                     ),
                 )
                 conn.commit()
-            return {"error": {"code": "execution_failed", "message": "command execution failed"}}
+            return {
+                "error": {
+                    "code": "execution_failed",
+                    "message": "command execution failed",
+                }
+            }
         with store._connection() as conn:
             store.update_command(conn, command_id, status="completed", result=result)
-            details = {"result": result, "next_step": result.get("next_action", "已完成")}
+            details = {
+                "result": result,
+                "next_step": result.get("next_action", "已完成"),
+            }
             conn.execute(
                 "UPDATE agent_tasks SET status=?, details_json=?, updated_at=?, "
                 "confirmed_at=COALESCE(confirmed_at, ?) WHERE id=?",
@@ -370,7 +397,11 @@ def create_agent_router(
                 conn.execute(
                     "UPDATE agent_conversations SET project_id=COALESCE(NULLIF(?, ''), project_id), "
                     "updated_at=? WHERE id=?",
-                    (result.get("project_id", ""), _now(), conversation["conversation_id"]),
+                    (
+                        result.get("project_id", ""),
+                        _now(),
+                        conversation["conversation_id"],
+                    ),
                 )
             conn.commit()
         return result
@@ -461,7 +492,14 @@ def create_agent_router(
             if not str(conversation["project_id"] or "").strip():
                 conn.execute(
                     "INSERT INTO agent_messages VALUES (?,?,?,?,?,?)",
-                    (_id("msg"), conversation_id, "user", payload.content, "{}", timestamp),
+                    (
+                        _id("msg"),
+                        conversation_id,
+                        "user",
+                        payload.content,
+                        "{}",
+                        timestamp,
+                    ),
                 )
                 conn.execute(
                     "INSERT INTO agent_messages VALUES (?,?,?,?,?,?)",
@@ -480,7 +518,9 @@ def create_agent_router(
                 )
                 conn.commit()
                 return conversation_payload(conn, conversation_id)
-            source_payload: dict[str, Any] = {"source_url": source_url} if source_url else {}
+            source_payload: dict[str, Any] = (
+                {"source_url": source_url} if source_url else {}
+            )
             try:
                 project_sources = conn.execute(
                     "SELECT id,title,source_type,source_url,checksum,created_at "
@@ -518,7 +558,10 @@ def create_agent_router(
                     ).fetchone()
                 if source:
                     source_payload.update(
-                        {"source_id": source["id"], "source_checksum": source["checksum"]}
+                        {
+                            "source_id": source["id"],
+                            "source_checksum": source["checksum"],
+                        }
                     )
             command = {
                 "command_id": command_id,
@@ -539,7 +582,11 @@ def create_agent_router(
                 "created_at": timestamp,
                 "updated_at": timestamp,
             }
-            status = "awaiting_confirmation" if policy.requires_confirmation else "executable"
+            status = (
+                "awaiting_confirmation"
+                if policy.requires_confirmation
+                else "executable"
+            )
             conn.execute(
                 "INSERT INTO agent_messages VALUES (?,?,?,?,?,?)",
                 (_id("msg"), conversation_id, "user", payload.content, "{}", timestamp),
@@ -565,7 +612,9 @@ def create_agent_router(
                                 "write": action if policy.writes else "",
                                 "confirmation_required": policy.requires_confirmation,
                             },
-                            "sources": source_payload.get("retrieval", {}).get("sources", []),
+                            "sources": source_payload.get("retrieval", {}).get(
+                                "sources", []
+                            ),
                             "missing_context": source_payload.get("retrieval", {}).get(
                                 "missing_context", []
                             ),
@@ -587,7 +636,8 @@ def create_agent_router(
                     "assistant",
                     reply,
                     json.dumps(
-                        {"task_id": task_id, "command_id": command_id}, ensure_ascii=False
+                        {"task_id": task_id, "command_id": command_id},
+                        ensure_ascii=False,
                     ),
                     timestamp,
                 ),
@@ -601,7 +651,9 @@ def create_agent_router(
             await run_command(task_id, command_id)
         with store._connection() as conn:
             result = conversation_payload(conn, conversation_id)
-            result["task"] = next(item for item in result["tasks"] if item["id"] == task_id)
+            result["task"] = next(
+                item for item in result["tasks"] if item["id"] == task_id
+            )
             return result
 
     @router.get("/tasks/{task_id}")
@@ -629,7 +681,9 @@ def create_agent_router(
             if command is None:
                 return {"task": task_payload(task, conn)}
             if command["actor"] != actor:
-                raise fail("actor_mismatch", "Only the command requester may confirm it", 403)
+                raise fail(
+                    "actor_mismatch", "Only the command requester may confirm it", 403
+                )
             if not payload.confirmed:
                 store.update_command(conn, command["command_id"], status="dismissed")
                 conn.execute(
@@ -668,7 +722,9 @@ def create_agent_router(
 
     @router.post("/tasks/{task_id}/retry")
     async def retry_task(task_id: str, payload: TaskConfirmRequest) -> dict[str, Any]:
-        return await confirm_task(task_id, payload.model_copy(update={"confirmed": True}))
+        return await confirm_task(
+            task_id, payload.model_copy(update={"confirmed": True})
+        )
 
     @router.get("/tasks/{task_id}/progress/stream")
     async def task_progress_stream(task_id: str):

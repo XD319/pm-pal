@@ -8,8 +8,7 @@ from typing import Any
 
 from pydantic import Field
 
-from .base import AgentSchemaModel, ID, RiskLevel
-
+from .base import ID, AgentSchemaModel, RiskLevel
 
 # ── item-level model ──────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 """Phase 5b Feishu realtime connector: events, config, decrypt, and sync handler."""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,7 @@ import sqlite3
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -23,16 +24,28 @@ from pm_pal.connectors.sync import (
     mark_event_processed,
     run_sync_task,
 )
-from pm_pal.integrations.feishu.config_routes import register_feishu_connector_config_routes
-from pm_pal.integrations.feishu.config_store import FeishuConfigStore, FeishuConnectorSecrets, FeishuDocMapping
-from pm_pal.integrations.feishu.crypto import decrypt_feishu_event_payload, encrypt_feishu_event_string
+from pm_pal.integrations.feishu.config_routes import (
+    register_feishu_connector_config_routes,
+)
+from pm_pal.integrations.feishu.config_store import (
+    FeishuConfigStore,
+    FeishuConnectorSecrets,
+    FeishuDocMapping,
+)
+from pm_pal.integrations.feishu.crypto import (
+    decrypt_feishu_event_payload,
+    encrypt_feishu_event_string,
+)
 from pm_pal.integrations.feishu.events import handle_feishu_event_payload
 from pm_pal.integrations.feishu.router import create_feishu_router
-from pm_pal.integrations.feishu.security import build_feishu_encrypt_signature, build_feishu_signature
+from pm_pal.integrations.feishu.security import (
+    build_feishu_encrypt_signature,
+    build_feishu_signature,
+)
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_id(kind: str) -> str:
@@ -163,11 +176,15 @@ def test_feishu_events_challenge_returns_challenge(feishu_realtime_env):
     assert response.json()["challenge"] == "challenge-token"
 
 
-def test_feishu_events_reject_invalid_signature_when_enabled(monkeypatch, feishu_realtime_env):
+def test_feishu_events_reject_invalid_signature_when_enabled(
+    monkeypatch, feishu_realtime_env
+):
     client, _, _, _, _, _ = feishu_realtime_env
     monkeypatch.setenv("MARRDP_FEISHU_SIGNATURE_DISABLED", "false")
     monkeypatch.setenv("MARRDP_FEISHU_WEBHOOK_SECRET", "test-secret")
-    body = json.dumps({"type": "url_verification", "challenge": "challenge-token"}).encode("utf-8")
+    body = json.dumps(
+        {"type": "url_verification", "challenge": "challenge-token"}
+    ).encode("utf-8")
     response = client.post(
         "/api/feishu/events",
         content=body,
@@ -181,11 +198,15 @@ def test_feishu_events_reject_invalid_signature_when_enabled(monkeypatch, feishu
     assert response.json()["detail"]["code"] == "invalid_feishu_signature"
 
 
-def test_feishu_events_accepts_valid_webhook_signature(monkeypatch, feishu_realtime_env):
+def test_feishu_events_accepts_valid_webhook_signature(
+    monkeypatch, feishu_realtime_env
+):
     client, _, _, _, _, _ = feishu_realtime_env
     secret = "test-secret"
     timestamp = str(int(time.time()))
-    body = json.dumps({"type": "url_verification", "challenge": "challenge-token"}).encode("utf-8")
+    body = json.dumps(
+        {"type": "url_verification", "challenge": "challenge-token"}
+    ).encode("utf-8")
     signature = build_feishu_signature(secret=secret, timestamp=timestamp, body=body)
     monkeypatch.setenv("MARRDP_FEISHU_SIGNATURE_DISABLED", "false")
     monkeypatch.setenv("MARRDP_FEISHU_WEBHOOK_SECRET", secret)
@@ -222,7 +243,11 @@ def test_feishu_events_accepts_encrypt_key_signature(monkeypatch, feishu_realtim
         updated_at=_utc_now(),
     )
     inner = {"type": "url_verification", "challenge": "encrypted-challenge"}
-    encrypted_body = {"encrypt": encrypt_feishu_event_string(encrypt_key=encrypt_key, plaintext=json.dumps(inner))}
+    encrypted_body = {
+        "encrypt": encrypt_feishu_event_string(
+            encrypt_key=encrypt_key, plaintext=json.dumps(inner)
+        )
+    }
     body = json.dumps(encrypted_body).encode("utf-8")
     timestamp = str(int(time.time()))
     nonce = "nonce-abc"
@@ -323,7 +348,9 @@ class _FakeFeishuConnector(FeishuConnector):
             source=source,
             title=self._document.title,
             content_markdown=self._document.content,
-            metadata=SourceMetadata(mime_type="text/markdown", extra={"connector": "feishu"}),
+            metadata=SourceMetadata(
+                mime_type="text/markdown", extra={"connector": "feishu"}
+            ),
         )
 
 
@@ -364,10 +391,17 @@ def _insert_test_source(
             json.dumps(metadata_extra),
         ),
     )
-    return {"id": source_id, "version": 1, "checksum": checksum, "metadata": metadata_extra}
+    return {
+        "id": source_id,
+        "version": 1,
+        "checksum": checksum,
+        "metadata": metadata_extra,
+    }
 
 
-def test_feishu_sync_handler_creates_project_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_feishu_sync_handler_creates_project_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setenv("MARRDP_FEISHU_APP_ID", "app-id")
     monkeypatch.setenv("MARRDP_FEISHU_APP_SECRET", "app-secret")
     db_path = tmp_path / "project_space.sqlite3"
@@ -387,7 +421,9 @@ def test_feishu_sync_handler_creates_project_source(tmp_path: Path, monkeypatch:
         project_id,
         app_id="app-id",
         secrets=FeishuConnectorSecrets(app_secret="app-secret"),
-        doc_mappings={"doc-sync-1": FeishuDocMapping(title="Synced PRD", document_kind="docx")},
+        doc_mappings={
+            "doc-sync-1": FeishuDocMapping(title="Synced PRD", document_kind="docx")
+        },
         updated_at=stamp,
     )
     fake_connector = _FakeFeishuConnector(
@@ -466,10 +502,13 @@ def test_handle_feishu_event_payload_marks_processed_once(tmp_path: Path):
     )
     assert first["kind"] == "sync_enqueued"
     assert second["kind"] == "duplicate"
-    assert mark_event_processed(
-        sync_store,
-        provider="feishu",
-        event_id="evt-9",
-        project_id=project_id,
-        now=_utc_now,
-    ) is False
+    assert (
+        mark_event_processed(
+            sync_store,
+            provider="feishu",
+            event_id="evt-9",
+            project_id=project_id,
+            now=_utc_now,
+        )
+        is False
+    )

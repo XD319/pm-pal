@@ -1,9 +1,11 @@
 """Parse GitHub webhook events and enqueue connector sync tasks."""
+
 from __future__ import annotations
 
 import fnmatch
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pm_pal.connectors.sync import (
     ConnectorSyncStore,
@@ -158,7 +160,9 @@ def handle_github_event_payload(
     if event_type == "ping":
         return {"kind": "ping", "zen": payload.get("zen", "")}
 
-    if event_id and is_event_processed(sync_store, provider="github", event_id=event_id):
+    if event_id and is_event_processed(
+        sync_store, provider="github", event_id=event_id
+    ):
         return {"kind": "duplicate", "event_id": event_id}
 
     full_name = extract_repo_full_name(payload)

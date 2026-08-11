@@ -289,7 +289,9 @@ class ProjectDomainRepository:
         if not project_id:
             raise ValueError("project_id is required")
         with self._connect() as conn:
-            row = conn.execute("SELECT id FROM projects WHERE id=?", (project_id,)).fetchone()
+            row = conn.execute(
+                "SELECT id FROM projects WHERE id=?", (project_id,)
+            ).fetchone()
             if row is None:
                 raise LookupError(f"project not found: {project_id}")
 
@@ -466,7 +468,9 @@ class ProjectDomainRepository:
             ).fetchone()
         return self._evidence_from_row(row) if row else None
 
-    def confirm_evidence(self, evidence_id: str, *, confirmed: bool = True) -> EvidenceRecord:
+    def confirm_evidence(
+        self, evidence_id: str, *, confirmed: bool = True
+    ) -> EvidenceRecord:
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT * FROM pm_evidence WHERE id=?", (evidence_id,)

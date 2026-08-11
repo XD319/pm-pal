@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from contextlib import AbstractContextManager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 _RUN_ID_VAR: contextvars.ContextVar[str] = contextvars.ContextVar(
@@ -30,17 +30,12 @@ _STANDARD_RECORD_ATTRS = set(logging.makeLogRecord({}).__dict__)
 
 
 def _utc_now_iso() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _format_timestamp(created: float) -> str:
     return (
-        datetime.fromtimestamp(created, tz=timezone.utc)
+        datetime.fromtimestamp(created, tz=UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z")
@@ -217,7 +212,7 @@ class RunLogContext(AbstractContextManager["RunLogContext"]):
         self.run_id = str(run_id or "").strip()
         self._token: contextvars.Token[str] | None = None
 
-    def __enter__(self) -> "RunLogContext":
+    def __enter__(self) -> RunLogContext:
         self._token = _RUN_ID_VAR.set(self.run_id)
         return self
 

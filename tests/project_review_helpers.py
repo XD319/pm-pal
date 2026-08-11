@@ -1,8 +1,9 @@
 """Helpers for project-scoped HTTP integration tests."""
+
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -16,7 +17,7 @@ def link_run_to_project(
     source_id: str = "",
     created_at: str | None = None,
 ) -> None:
-    timestamp = created_at or datetime.now(timezone.utc).isoformat()
+    timestamp = created_at or datetime.now(UTC).isoformat()
     with sqlite3.connect(app_module.PROJECT_SPACE_DB_PATH) as connection:
         connection.execute(
             "DELETE FROM project_runs WHERE run_id = ?",

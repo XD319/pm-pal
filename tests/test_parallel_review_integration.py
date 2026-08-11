@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from pm_pal.run_review import run_review
 from pm_pal.review.parallel_review_manager import ParallelReviewResult
+from pm_pal.run_review import run_review
 
 
 def _trace_span(status: str = "ok") -> dict[str, object]:

@@ -1,8 +1,9 @@
 """GitHub webhook router for realtime connector sync."""
+
 from __future__ import annotations
 
 import json
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse

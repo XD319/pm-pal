@@ -1,12 +1,12 @@
 """GitHub webhook signature verification for X-Hub-Signature-256."""
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
-
 
 _SIGNATURE_DISABLED_ENV = "MARRDP_GITHUB_SIGNATURE_DISABLED"
 _WEBHOOK_SECRET_ENV = "MARRDP_GITHUB_WEBHOOK_SECRET"

@@ -3,12 +3,11 @@ import json
 from pm_pal.review.aggregator import aggregate_review_results
 from pm_pal.review.reviewer_agents.base import (
     EvidenceItem,
-    ReviewFinding,
     ReviewerResult,
+    ReviewFinding,
     RiskItem,
     ToolCall,
 )
-
 
 _MANUAL_REVIEW_TEXT = "Manual review required"
 _MANUAL_REVIEW_MESSAGE = (

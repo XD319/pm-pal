@@ -1,7 +1,9 @@
 """Sync handler that ingests Feishu documents into project materials."""
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pm_pal.connectors.auth import ConnectorAuthConfig, ConnectorAuthType
 from pm_pal.connectors.feishu import FeishuConfig, FeishuConnector
@@ -9,7 +11,9 @@ from pm_pal.connectors.sync import register_sync_handler
 from pm_pal.integrations.feishu.config_store import FeishuConfigStore
 
 
-def _build_connector_config(config_store: FeishuConfigStore, project_id: str) -> FeishuConfig | None:
+def _build_connector_config(
+    config_store: FeishuConfigStore, project_id: str
+) -> FeishuConfig | None:
     config = config_store.get(project_id)
     app_id = config.resolved_app_id()
     app_secret = config.resolved_app_secret()
@@ -32,12 +36,16 @@ def create_feishu_sync_handler(
     connector_factory: Callable[[FeishuConfig | None], FeishuConnector] | None = None,
     upsert_source: Callable[..., dict[str, Any]] | None = None,
 ) -> Callable[[str, str, dict[str, Any]], dict[str, Any]]:
-    def handler(project_id: str, provider: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def handler(
+        project_id: str, provider: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         _ = provider
         source_url = str(payload.get("source_url") or "").strip()
         if not source_url:
             doc_token = str(payload.get("doc_token") or "").strip()
-            document_kind = str(payload.get("document_kind") or "docx").strip() or "docx"
+            document_kind = (
+                str(payload.get("document_kind") or "docx").strip() or "docx"
+            )
             source_url = f"feishu://{document_kind}/{doc_token}"
         connector_config = _build_connector_config(config_store, project_id)
         connector = (

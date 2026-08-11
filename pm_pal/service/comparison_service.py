@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
+from pm_pal.service.report_service import RUN_ID_PATTERN
 from pm_pal.service.review_service import (
     _load_json_object,
     _resolve_outputs_root,
     _resolve_run_dir,
 )
-from pm_pal.service.report_service import RUN_ID_PATTERN
 
 
 class NumericDelta(BaseModel):
@@ -234,11 +234,9 @@ def _extract_timestamp(run_dir: Path, report: dict[str, Any]) -> str:
 
     run_dt: datetime | None = None
     if RUN_ID_PATTERN.fullmatch(run_dir.name):
-        run_dt = datetime.strptime(run_dir.name, "%Y%m%dT%H%M%SZ").replace(
-            tzinfo=timezone.utc
-        )
+        run_dt = datetime.strptime(run_dir.name, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
     if run_dt is None:
-        run_dt = datetime.fromtimestamp(run_dir.stat().st_mtime, tz=timezone.utc)
+        run_dt = datetime.fromtimestamp(run_dir.stat().st_mtime, tz=UTC)
     return run_dt.isoformat()
 
 
@@ -275,7 +273,7 @@ def _iter_run_dirs(outputs_root: str | Path) -> list[Path]:
     run_dirs.sort(
         key=lambda path: (
             datetime.strptime(path.name, "%Y%m%dT%H%M%SZ")
-            .replace(tzinfo=timezone.utc)
+            .replace(tzinfo=UTC)
             .timestamp(),
             path.name,
         ),

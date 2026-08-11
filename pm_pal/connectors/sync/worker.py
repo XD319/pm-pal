@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from pm_pal.connectors.sync.service import (
     SYNC_STATUS_PENDING,
@@ -18,7 +19,7 @@ log = logging.getLogger("pm_pal.connectors.sync.worker")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def claim_due_tasks(
@@ -99,7 +100,7 @@ class ConnectorSyncWorker:
         if task is not None:
             try:
                 await asyncio.wait_for(task, timeout=5)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except (TimeoutError, asyncio.CancelledError):
                 task.cancel()
         self.alive = False
         self._stop = None
@@ -125,15 +126,15 @@ class ConnectorSyncWorker:
                 self.last_error = str(exc)
                 log.exception("connector sync worker tick failed")
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=self.poll_interval_sec)
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(
+                    stop_event.wait(), timeout=self.poll_interval_sec
+                )
+            except TimeoutError:
                 continue
 
     def _tick(self) -> None:
         self.last_tick_at = self.now()
-        due = claim_due_tasks(
-            self.sync_store, limit=self.batch_size, now=self.now
-        )
+        due = claim_due_tasks(self.sync_store, limit=self.batch_size, now=self.now)
         for row in due:
             run_sync_task(
                 self.sync_store,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
 from typing import Any
@@ -24,7 +24,7 @@ ProgressHook = Callable[[str, str, dict[str, Any]], None]
 
 
 def make_run_id() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def make_unique_run_id(
@@ -90,7 +90,7 @@ def build_report_data(result: dict[str, Any], run_id: str) -> dict[str, Any]:
     report_data: dict[str, Any] = {
         "schema_version": "v1.1",
         "run_id": run_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "model": model,
         "provider": provider,
         "project": "pm_pal",

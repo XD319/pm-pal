@@ -42,7 +42,9 @@ class LocalJobQueue:
         self.db_path = Path(db_path) if db_path else None
         self.max_attempts = max(1, int(max_attempts))
         self._jobs: dict[str, dict[str, Any]] = {}
-        self._handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]] = {}
+        self._handlers: dict[
+            str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+        ] = {}
         if self.db_path is not None:
             self._ensure_schema()
             self._load_into_memory()
@@ -74,7 +76,10 @@ class LocalJobQueue:
             status = str(existing.get("status") or "")
             if status in {"completed", "running"}:
                 return existing
-            if status == "failed" and int(existing.get("attempts") or 0) >= self.max_attempts:
+            if (
+                status == "failed"
+                and int(existing.get("attempts") or 0) >= self.max_attempts
+            ):
                 return existing
             # Retryable failed / pending jobs continue below with incremented attempts.
             record = existing
@@ -151,11 +156,14 @@ class LocalJobQueue:
         items = list(self._jobs.values())
         if status:
             items = [item for item in items if str(item.get("status")) == status]
-        return sorted(items, key=lambda item: str(item.get("updated_at") or ""), reverse=True)
+        return sorted(
+            items, key=lambda item: str(item.get("updated_at") or ""), reverse=True
+        )
 
     async def recover(
         self,
-        handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]] | None = None,
+        handlers: dict[str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]]
+        | None = None,
     ) -> list[dict[str, Any]]:
         """Resume unfinished jobs after process restart."""
         if handlers:
@@ -191,7 +199,9 @@ class LocalJobQueue:
             )
         return resumed
 
-    def _append_event(self, record: dict[str, Any], *, bucket: str, event: dict[str, Any]) -> None:
+    def _append_event(
+        self, record: dict[str, Any], *, bucket: str, event: dict[str, Any]
+    ) -> None:
         events = list(record.get(bucket) or [])
         events.append(event)
         record[bucket] = events
@@ -239,7 +249,9 @@ class LocalJobQueue:
                 "attempts": int(row["attempts"] or 0),
                 "retry_count": int(row["retry_count"] or 0),
                 "audit_events": json.loads(row["audit_events_json"] or "[]"),
-                "notification_events": json.loads(row["notification_events_json"] or "[]"),
+                "notification_events": json.loads(
+                    row["notification_events_json"] or "[]"
+                ),
                 "created_at": str(row["created_at"] or ""),
                 "updated_at": str(row["updated_at"] or ""),
             }
@@ -275,7 +287,9 @@ class LocalJobQueue:
                     int(record.get("attempts") or 0),
                     int(record.get("retry_count") or 0),
                     json.dumps(record.get("audit_events") or [], ensure_ascii=False),
-                    json.dumps(record.get("notification_events") or [], ensure_ascii=False),
+                    json.dumps(
+                        record.get("notification_events") or [], ensure_ascii=False
+                    ),
                     str(record.get("created_at") or utc_now_iso()),
                     str(record.get("updated_at") or utc_now_iso()),
                 ),

@@ -7,9 +7,9 @@ import asyncio
 from ..normalizer import NormalizedRequirement
 from .base import (
     EvidenceItem,
-    ReviewFinding,
     ReviewerConfig,
     ReviewerResult,
+    ReviewFinding,
     RiskItem,
     ToolCall,
     build_reviewer_result,

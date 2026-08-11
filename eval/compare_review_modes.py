@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -21,7 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pm_pal.service import review_service  # noqa: E402
+from pm_pal.service import review_service
 
 DEFAULT_CASE_IDS = ("prd_case_08", "prd_case_11")
 MODES = ("single_review", "parallel_review")
@@ -222,7 +222,7 @@ def run_comparison(
         rows.append(case_row)
 
     payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "cases_file": str(cases_path),
         "selected_case_ids": [str(case["case_id"]) for case in selected_cases],
         "token_usage": "not available",

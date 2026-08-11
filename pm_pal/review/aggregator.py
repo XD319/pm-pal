@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .clarification_gate import build_clarification_payload
-from .reviewer_agents.base import ReviewFinding, ReviewerResult, normalize_severity
+from .reviewer_agents.base import ReviewerResult, ReviewFinding, normalize_severity
 from .reviewer_agents.delivery_reviewer import arbitrate_conflict
 
 _SEMANTIC_SIGNAL_PATTERNS: dict[str, tuple[str, ...]] = {

@@ -1,13 +1,15 @@
 """Persist GitHub connector auth and repo mappings in project_space DB."""
+
 from __future__ import annotations
 
 import json
 import os
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 class GitHubAuthMode(str, Enum):
@@ -39,7 +41,7 @@ class GitHubRepoMapping:
         return payload
 
     @classmethod
-    def from_dict(cls, raw: Any) -> "GitHubRepoMapping | None":
+    def from_dict(cls, raw: Any) -> GitHubRepoMapping | None:
         if not isinstance(raw, dict):
             return None
         title = str(raw.get("title") or "").strip()
@@ -83,9 +85,13 @@ class GitHubConnectorConfig:
     updated_at: str = ""
 
     def resolved_auth_mode(self) -> GitHubAuthMode:
-        raw = str(
-            self.secrets.auth_mode or os.getenv("MARRDP_GITHUB_AUTH_MODE", "") or ""
-        ).strip().lower()
+        raw = (
+            str(
+                self.secrets.auth_mode or os.getenv("MARRDP_GITHUB_AUTH_MODE", "") or ""
+            )
+            .strip()
+            .lower()
+        )
         if raw == GitHubAuthMode.app.value:
             return GitHubAuthMode.app
         return GitHubAuthMode.pat
@@ -95,9 +101,7 @@ class GitHubConnectorConfig:
 
     def resolved_private_key(self) -> str:
         return str(
-            self.secrets.private_key
-            or os.getenv("MARRDP_GITHUB_PRIVATE_KEY", "")
-            or ""
+            self.secrets.private_key or os.getenv("MARRDP_GITHUB_PRIVATE_KEY", "") or ""
         ).strip()
 
     def resolved_installation_id(self) -> str:
@@ -180,7 +184,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
         existing = self.get(normalized_project_id)
         next_app_id = existing.app_id if app_id is None else str(app_id).strip()
         next_base_url = existing.base_url if base_url is None else str(base_url).strip()
-        next_mappings = existing.repo_mappings if repo_mappings is None else repo_mappings
+        next_mappings = (
+            existing.repo_mappings if repo_mappings is None else repo_mappings
+        )
         next_secrets = existing.secrets
         if secrets is not None:
             next_secrets = (
@@ -198,10 +204,7 @@ CREATE TABLE IF NOT EXISTS connector_configs (
                 else secrets
             )
         mappings_json = json.dumps(
-            {
-                key: mapping.to_dict()
-                for key, mapping in sorted(next_mappings.items())
-            }
+            {key: mapping.to_dict() for key, mapping in sorted(next_mappings.items())}
         )
         secrets_json = json.dumps(
             {
@@ -237,7 +240,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
             connection.commit()
         return self.get(normalized_project_id)
 
-    def find_project_for_repo(self, full_name: str) -> tuple[str, GitHubRepoMapping] | None:
+    def find_project_for_repo(
+        self, full_name: str
+    ) -> tuple[str, GitHubRepoMapping] | None:
         normalized = str(full_name or "").strip().lower()
         if not normalized or "/" not in normalized:
             return None
@@ -336,7 +341,9 @@ CREATE TABLE IF NOT EXISTS connector_configs (
         return GitHubConnectorSecrets(
             auth_mode=auth_mode,
             private_key=str(decoded.get("private_key") or "").strip(),
-            personal_access_token=str(decoded.get("personal_access_token") or "").strip(),
+            personal_access_token=str(
+                decoded.get("personal_access_token") or ""
+            ).strip(),
             installation_id=str(decoded.get("installation_id") or "").strip(),
             webhook_secret=str(decoded.get("webhook_secret") or "").strip(),
         )

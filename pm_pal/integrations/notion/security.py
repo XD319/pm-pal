@@ -1,11 +1,12 @@
 """Notion webhook signature verification."""
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 _SIGNATURE_DISABLED_ENV = "MARRDP_NOTION_SIGNATURE_DISABLED"
 _SIGNING_SECRET_ENV = "MARRDP_NOTION_SIGNING_SECRET"
