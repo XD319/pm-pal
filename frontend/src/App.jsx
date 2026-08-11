@@ -370,9 +370,9 @@ function AgentDialog({ open, onOpenChange, projectId, onCreated }) {
     <Dialog
       open={open}
       onOpenChange={(_, data) => {
-        // Ignore backdrop dismiss while the form is submitting or mid-input. :-)
-        if (!data.open && saving) return;
-        onOpenChange(data.open);
+        // Controlled close only via Cancel/success handlers; ignore chrome dismiss. :-)
+        if (!data.open) return;
+        onOpenChange(true);
       }}
     >
       <DialogSurface aria-describedby={undefined}>
@@ -730,17 +730,38 @@ function PrdDialog({ open, onOpenChange, projectId, onSaved }) {
       : Boolean(title.trim() && content.trim());
 
   return (
-    <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) reset(); onOpenChange(data.open); }}>
-      <DialogSurface>
+    <Dialog
+      open={open}
+      onOpenChange={(_, data) => {
+        // Controlled close only via Cancel/success handlers; ignore chrome dismiss. :-)
+        if (!data.open) return;
+        onOpenChange(true);
+      }}
+    >
+      <DialogSurface aria-describedby={undefined}>
         <form onSubmit={save}>
           <DialogBody>
             <DialogTitle>{T.addPrd}</DialogTitle>
             <DialogContent className="v5-dialog">
-              <TabList selectedValue={mode} onTabSelect={(_, data) => { setMode(data.value); setError(''); }}>
-                <Tab value="feishu">{T.prdModeFeishu}</Tab>
-                <Tab value="file">{T.prdModeFile}</Tab>
-                <Tab value="paste">{T.prdModePaste}</Tab>
-              </TabList>
+              <div className="v5-actions" role="tablist" aria-label={T.addPrd}>
+                {[
+                  { value: 'feishu', label: T.prdModeFeishu },
+                  { value: 'file', label: T.prdModeFile },
+                  { value: 'paste', label: T.prdModePaste },
+                ].map((item) => (
+                  <Button
+                    key={item.value}
+                    type="button"
+                    size="small"
+                    role="tab"
+                    aria-selected={mode === item.value}
+                    appearance={mode === item.value ? 'primary' : 'secondary'}
+                    onClick={() => { setMode(item.value); setError(''); }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
               {mode === 'feishu' ? (
                 <>
                   <Text size={200}>{T.prdFeishuHint}</Text>
@@ -788,7 +809,13 @@ function PrdDialog({ open, onOpenChange, projectId, onSaved }) {
               {error ? <Text role="alert" className="v5-inline-error">{error}</Text> : null}
             </DialogContent>
             <DialogActions>
-              <Button appearance="secondary" onClick={() => onOpenChange(false)}>{T.cancel}</Button>
+              <Button
+                type="button"
+                appearance="secondary"
+                onClick={() => { reset(); onOpenChange(false); }}
+              >
+                {T.cancel}
+              </Button>
               <Button appearance="primary" type="submit" disabled={!canSubmit || saving}>{saving ? T.saving : T.addPrd}</Button>
             </DialogActions>
           </DialogBody>

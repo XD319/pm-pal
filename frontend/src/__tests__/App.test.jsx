@@ -197,11 +197,11 @@ describe('workspace navigation', () => {
     renderApp('/materials?project_id=p-1');
     await waitFor(() => expect(screen.getByRole('heading', { name: '资料' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: '接入 PRD' }));
-    const urlInput = await screen.findByLabelText('飞书文档链接');
+    const dialog = await screen.findByRole('dialog');
+    const urlInput = within(dialog).getByLabelText('飞书文档链接');
     await user.click(urlInput);
     await user.paste('https://feishu.cn/docx/abc');
-    const submit = screen.getAllByRole('button', { name: '接入 PRD' }).at(-1);
-    await user.click(submit);
+    fireEvent.submit(dialog.querySelector('form'));
     await waitFor(() => expect(api.connectPrdSource).toHaveBeenCalledWith('p-1', {
       source_url: 'https://feishu.cn/docx/abc',
       title: '',
@@ -214,13 +214,13 @@ describe('workspace navigation', () => {
     renderApp('/materials?project_id=p-1');
     await waitFor(() => expect(screen.getByRole('heading', { name: '资料' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: '接入 PRD' }));
-    await user.click(screen.getByRole('tab', { name: '本地文件' }));
-    const fileInput = await screen.findByLabelText('选择文件');
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('tab', { name: '本地文件' }));
+    const fileInput = within(screen.getByRole('dialog')).getByLabelText('选择文件');
     await user.upload(fileInput, file);
-    await waitFor(() => expect(screen.getByText('spec.md')).toBeInTheDocument());
-    const submit = screen.getAllByRole('button', { name: '接入 PRD' }).at(-1);
-    expect(submit).not.toBeDisabled();
-    await user.click(submit);
+    expect(fileInput.files?.[0]).toBe(file);
+    await waitFor(() => expect(screen.getByRole('dialog')).toHaveTextContent('spec.md'));
+    fireEvent.submit(screen.getByRole('dialog').querySelector('form'));
     await waitFor(() => expect(api.uploadPrdSource).toHaveBeenCalledWith('p-1', expect.any(File), { title: '' }));
   });
 
@@ -229,11 +229,16 @@ describe('workspace navigation', () => {
     renderApp('/materials?project_id=p-1');
     await waitFor(() => expect(screen.getByRole('heading', { name: '资料' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: '接入 PRD' }));
-    await user.click(screen.getByRole('tab', { name: '粘贴正文' }));
-    await user.type(screen.getByLabelText('PRD 标题'), '临时稿');
-    await user.type(screen.getByLabelText('PRD 正文'), '粘贴内容');
-    const submit = screen.getAllByRole('button', { name: '接入 PRD' }).at(-1);
-    await user.click(submit);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('tab', { name: '粘贴正文' }));
+    const openDialog = () => screen.getByRole('dialog');
+    const titleInput = within(openDialog()).getByLabelText('PRD 标题');
+    const contentInput = within(openDialog()).getByLabelText('PRD 正文');
+    await user.click(titleInput);
+    await user.paste('临时稿');
+    await user.click(contentInput);
+    await user.paste('粘贴内容');
+    fireEvent.submit(openDialog().querySelector('form'));
     await waitFor(() => expect(api.addPrdSource).toHaveBeenCalledWith('p-1', {
       title: '临时稿',
       content: '粘贴内容',
@@ -248,10 +253,10 @@ describe('workspace navigation', () => {
     await user.click(screen.getAllByRole('button', { name: '询问 Agent' })[0]);
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: '生成机会草案' }));
-    fireEvent.change(within(dialog).getByLabelText('任务说明'), {
-      target: { value: '请生成机会草案' },
-    });
-    await user.click(within(dialog).getByRole('button', { name: '提交任务' }));
+    const taskInput = within(dialog).getByLabelText('任务说明');
+    await user.click(taskInput);
+    await user.paste('请生成机会草案');
+    fireEvent.submit(screen.getByRole('dialog').querySelector('form'));
     await waitFor(() => expect(api.createConversation).toHaveBeenCalledWith('p-1', 'local'));
     await waitFor(() => expect(api.sendMessage).toHaveBeenCalledWith(
       'c-new',
