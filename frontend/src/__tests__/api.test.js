@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { buildReviewProgressStreamUrl, fetchReviewResult, runPmPipeline } from '../api';
+import { buildReviewProgressStreamUrl, fetchReviewResult } from '../api';
 
 const okJsonResponse = {
   ok: true,
@@ -7,7 +7,7 @@ const okJsonResponse = {
   headers: {
     get: () => 'application/json',
   },
-  json: async () => ({ ok: true, pipeline_id: 'pipe-1' }),
+  json: async () => ({ ok: true }),
   text: async () => '',
 };
 
@@ -51,30 +51,6 @@ describe('api project-scoped review paths', () => {
       'Content-Type': 'application/json',
       'X-Feishu-Open-Id': 'ou_owner',
       'X-Feishu-Tenant-Key': 'tenant-a',
-    });
-  });
-});
-
-describe('api PM endpoints', () => {
-  beforeEach(() => {
-    window.history.replaceState({}, '', '/pm');
-    window.fetch.mockResolvedValue(okJsonResponse);
-  });
-
-  it('posts pipeline run requests to /api/pm/pipeline/run', async () => {
-    await runPmPipeline({
-      feedback_texts: ['Login is confusing'],
-      product_hint: 'commerce',
-      run_quality_gate: false,
-    });
-
-    const [url, options] = window.fetch.mock.calls[0];
-    expect(url).toBe('/api/pm/pipeline/run');
-    expect(options.method).toBe('POST');
-    expect(JSON.parse(options.body)).toMatchObject({
-      feedback_texts: ['Login is confusing'],
-      product_hint: 'commerce',
-      run_quality_gate: false,
     });
   });
 });

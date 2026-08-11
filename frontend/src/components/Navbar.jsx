@@ -35,10 +35,10 @@ function Navbar({ theme, onToggleTheme }) {
   return (
     <header className="navbar-shell">
       <div className="navbar">
-        <NavLink to="/" end className="navbar-brand" aria-label="PRD Pal 产品工作台">
+        <NavLink to="/" end className="navbar-brand" aria-label="PM Pal 产品工作台">
           <span className="navbar-logo" aria-hidden="true">PP</span>
           <span className="navbar-brand-copy">
-            <strong>PRD Pal</strong>
+            <strong>PM Pal</strong>
             <small>产品协作工作台</small>
           </span>
         </NavLink>

@@ -19,7 +19,7 @@ export default function AppSidebar({ theme, onToggleTheme }) {
     {open ? <button className="sidebar-backdrop" onClick={close} aria-label="关闭导航" /> : null}
     <aside className={`app-sidebar ${open ? 'app-sidebar-open' : ''}`}>
       <div className="sidebar-top">
-        <NavLink to="/agent" className="sidebar-brand" onClick={close}><span>PP</span><strong>PRD Pal</strong></NavLink>
+        <NavLink to="/agent" className="sidebar-brand" onClick={close}><span>PP</span><strong>PM Pal</strong></NavLink>
         <button className="sidebar-close" onClick={close} aria-label="关闭导航"><IconX size={18} /></button>
       </div>
       <button className="sidebar-new-task" onClick={newTask}><IconPlus size={17} stroke={1.8} />新建任务</button>

@@ -1,0 +1,9 @@
+﻿{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PM Pal",
+  "version": "0.1.0",
+  "identifier": "com.pm-pal.desktop",
+  "build": { "beforeDevCommand": "npm run dev", "beforeBuildCommand": "npm run build", "devUrl": "http://localhost:5173", "frontendDist": "../dist" },
+  "app": { "windows": [{ "title": "PM Pal", "width": 1360, "height": 900, "minWidth": 960, "minHeight": 640 }] },
+  "bundle": { "active": true, "targets": ["nsis"], "externalBin": ["binaries/pm-pal-api"] }
+}

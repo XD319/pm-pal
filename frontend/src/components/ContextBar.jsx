@@ -4,5 +4,5 @@ const labels = { '/agent': '任务', '/projects': '项目', '/workbench': '决�
 export default function ContextBar() {
  const { pathname } = useLocation();
  const key = Object.keys(labels).find((item) => pathname === item || pathname.startsWith(`${item}/`));
- return <header className="context-bar"><span>{labels[key] || 'PRD Pal'}</span>{pathname.startsWith('/agent/') ? <><IconChevronRight size={15}/><span className="context-muted">当前会话</span></> : null}</header>;
+ return <header className="context-bar"><span>{labels[key] || 'PM Pal'}</span>{pathname.startsWith('/agent/') ? <><IconChevronRight size={15}/><span className="context-muted">当前会话</span></> : null}</header>;
 }
