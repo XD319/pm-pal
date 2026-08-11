@@ -6,17 +6,24 @@ For project-space setup and review APIs, see [project-space.md](./project-space.
 
 ## Environment naming
 
-Runtime code currently reads `MARRDP_*` variables. The preferred public names going forward are `PRD_PAL_*` equivalents documented below. Set either name in `.env` where noted; when both are present, `MARRDP_*` remains the active reader until dual-read helpers land.
+| Area | Runtime reader today | Notes |
+|------|----------------------|-------|
+| API auth / rate limit | **Dual-read**: `PM_PAL_*` preferred, `MARRDP_*` fallback | See `.env.example` |
+| Host / port | **Dual-read**: `PM_PAL_HOST` / `PM_PAL_PORT` | Used by `main.py` |
+| Secrets master key | **Dual-read**: `PM_PAL_SECRETS_MASTER_KEY` | Provider key encryption |
+| Data directory | `PM_PAL_DATA_DIR` only | Default `data` |
+| Feishu / Notion / GitHub connector & webhooks | **`MARRDP_*` only** | Set `MARRDP_*` in `.env` today (no `PM_PAL_*` dual-read yet) |
 
 ## Feishu
 
 ### Callback URLs
 
-| Purpose | Method | Path |
-|---------|--------|------|
-| Event subscription / challenge | POST | `/api/feishu/events` |
-| Review submit (plugin/card) | POST | `/api/feishu/submit` |
-| Clarification answer | POST | `/api/feishu/clarification` |
+| Purpose | Method | Path | Status |
+|---------|--------|------|--------|
+| Event subscription / challenge | POST | `/api/feishu/events` | Active |
+| Clarification answer | POST | `/api/feishu/clarification` | Active |
+| Workspace helpers | GET/POST | `/api/feishu/workspaces/...` | Active |
+| Legacy review submit | POST | `/api/feishu/submit` | **410 Gone** — use `POST /api/projects/{project_id}/reviews` |
 
 Public base URL example: `https://<your-domain>/api/feishu/events`
 
@@ -29,39 +36,38 @@ Feishu verification supports two modes controlled by whether an encrypt key is c
 
 Required headers (Lark or Feishu alias):
 
-- `X-Lark-Request-Timestamp` / `X-Feishu-Request-Timestamp`
 - `X-Lark-Signature` / `X-Feishu-Signature`
-- `X-Lark-Request-Nonce` / `X-Feishu-Request-Nonce` (encrypt key mode only)
+- `X-Lark-Request-Timestamp` / `X-Feishu-Request-Timestamp`
+- Optional nonce headers for encrypt-key mode
 
 ### Environment variables
 
-| Active (`MARRDP_*`) | Preferred (`PRD_PAL_*`) | Notes |
-|---------------------|-------------------------|-------|
-| `MARRDP_FEISHU_SIGNATURE_DISABLED` | `PRD_PAL_FEISHU_SIGNATURE_DISABLED` | `true` for local mock |
-| `MARRDP_FEISHU_WEBHOOK_SECRET` | `PRD_PAL_FEISHU_WEBHOOK_SECRET` | Required when signatures enabled (non-encrypt mode) |
-| `MARRDP_FEISHU_ENCRYPT_KEY` | `PRD_PAL_FEISHU_ENCRYPT_KEY` | Enables encrypt-key signature path |
-| `MARRDP_FEISHU_SIGNATURE_TOLERANCE_SEC` | `PRD_PAL_FEISHU_SIGNATURE_TOLERANCE_SEC` | Default `300` |
-| `MARRDP_FEISHU_APP_ID` | `PRD_PAL_FEISHU_APP_ID` | App credentials |
-| `MARRDP_FEISHU_APP_SECRET` | `PRD_PAL_FEISHU_APP_SECRET` | App credentials |
-| `MARRDP_PUBLIC_BASE_URL` | `PRD_PAL_PUBLIC_BASE_URL` | Used in notification cards |
+| Active (`MARRDP_*`) | Notes |
+|---------------------|-------|
+| `MARRDP_FEISHU_SIGNATURE_DISABLED` | `true` for local mock |
+| `MARRDP_FEISHU_WEBHOOK_SECRET` | Required when signatures enabled (non-encrypt mode) |
+| `MARRDP_FEISHU_ENCRYPT_KEY` | Enables encrypt-key signature path |
+| `MARRDP_FEISHU_SIGNATURE_TOLERANCE_SEC` | Default `300` |
+| `MARRDP_FEISHU_APP_ID` | App credentials |
+| `MARRDP_FEISHU_APP_SECRET` | App credentials |
+| `MARRDP_PUBLIC_BASE_URL` | Used in notification cards |
 
-Local development:
+Local mock:
 
 ```dotenv
 MARRDP_FEISHU_SIGNATURE_DISABLED=true
 ```
 
-Production:
+Production-style:
 
 ```dotenv
 MARRDP_FEISHU_SIGNATURE_DISABLED=false
 MARRDP_FEISHU_WEBHOOK_SECRET=your-webhook-secret
-# Optional encrypt-key mode:
 # MARRDP_FEISHU_ENCRYPT_KEY=your-encrypt-key
 MARRDP_PUBLIC_BASE_URL=https://your-domain
 ```
 
-If signatures are enabled without a webhook secret (and no encrypt key), callbacks return `detail.code = feishu_signature_not_configured`.
+When signatures are enabled and `MARRDP_FEISHU_WEBHOOK_SECRET` is empty (and encrypt key is not used), callbacks return a controlled configuration error (`feishu_signature_not_configured`).
 
 ## Notion
 
@@ -69,35 +75,25 @@ If signatures are enabled without a webhook secret (and no encrypt key), callbac
 
 | Purpose | Method | Path |
 |---------|--------|------|
-| Webhook events / verification | POST | `/api/notion/events` |
-
-Example: `https://<your-domain>/api/notion/events`
-
-### Signature verification
-
-Notion sends `X-Notion-Signature` as `sha256=<hex>` HMAC over the raw request body.
-
-Verification token handshake: initial subscription payloads may include `verification_token`; the handler echoes it without requiring a signature on that first message.
-
-Project-scoped signing secrets can also be stored per project in the project-space database; the router resolves secrets by page ID when available.
+| Webhook / verification | POST | `/api/notion/events` |
 
 ### Environment variables
 
-| Active (`MARRDP_*`) | Preferred (`PRD_PAL_*`) | Notes |
-|---------------------|-------------------------|-------|
-| `MARRDP_NOTION_SIGNATURE_DISABLED` | `PRD_PAL_NOTION_SIGNATURE_DISABLED` | `true` for local mock |
-| `MARRDP_NOTION_SIGNING_SECRET` | `PRD_PAL_NOTION_SIGNING_SECRET` | Webhook signing secret |
-| `MARRDP_NOTION_VERIFICATION_TOKEN` | `PRD_PAL_NOTION_VERIFICATION_TOKEN` | Legacy fallback for signing secret |
-| `MARRDP_NOTION_TOKEN` | `PRD_PAL_NOTION_TOKEN` | Integration token for page fetch |
+| Active (`MARRDP_*`) | Notes |
+|---------------------|-------|
+| `MARRDP_NOTION_SIGNATURE_DISABLED` | `true` for local mock |
+| `MARRDP_NOTION_SIGNING_SECRET` | Webhook signing secret |
+| `MARRDP_NOTION_VERIFICATION_TOKEN` | Legacy fallback for signing secret |
+| `MARRDP_NOTION_TOKEN` | Integration token for page fetch |
 
-Local development:
+Local mock:
 
 ```dotenv
 MARRDP_NOTION_SIGNATURE_DISABLED=true
 MARRDP_NOTION_TOKEN=secret_...
 ```
 
-Production:
+Production-style:
 
 ```dotenv
 MARRDP_NOTION_SIGNATURE_DISABLED=false
@@ -111,46 +107,29 @@ MARRDP_NOTION_TOKEN=secret_...
 
 | Purpose | Method | Path |
 |---------|--------|------|
-| Repository webhook events | POST | `/api/github/events` |
+| Webhook events | POST | `/api/github/events` |
 
-Example: `https://<your-domain>/api/github/events`
+### Environment variables
 
-Configure this URL in your GitHub App or repository webhook settings. Subscribe to content events relevant to your mapped repos (push, issues, pull requests, etc.).
+| Active (`MARRDP_*`) | Notes |
+|---------------------|-------|
+| `MARRDP_GITHUB_SIGNATURE_DISABLED` | `true` for local mock |
+| `MARRDP_GITHUB_WEBHOOK_SECRET` | Global webhook secret |
+| `MARRDP_GITHUB_APP_ID` | App mode |
+| `MARRDP_GITHUB_PRIVATE_KEY` | PEM private key |
+| `MARRDP_GITHUB_INSTALLATION_ID` | App installation |
+| `MARRDP_GITHUB_TOKEN` | PAT fallback (`GITHUB_TOKEN` also accepted) |
+| `MARRDP_GITHUB_AUTH_MODE` | `app` or `pat` |
+| `MARRDP_GITHUB_API_BASE_URL` | Enterprise GitHub base URL |
 
-### Signature verification
-
-GitHub sends `X-Hub-Signature-256` as `sha256=<hex>` HMAC-SHA256 over the raw request body.
-
-Per-project webhook secrets stored in project-space config take precedence over the global env secret when resolving verification settings.
-
-### Auth modes (App vs PAT)
-
-GitHub connector auth is configured per project:
-
-- **GitHub App** — `app_id`, installation ID, private key, optional webhook secret
-- **PAT** — personal access token for simpler setups
-
-Global env fallbacks:
-
-| Active (`MARRDP_*`) | Preferred (`PRD_PAL_*`) | Notes |
-|---------------------|-------------------------|-------|
-| `MARRDP_GITHUB_SIGNATURE_DISABLED` | `PRD_PAL_GITHUB_SIGNATURE_DISABLED` | `true` for local mock |
-| `MARRDP_GITHUB_WEBHOOK_SECRET` | `PRD_PAL_GITHUB_WEBHOOK_SECRET` | Global webhook secret |
-| `MARRDP_GITHUB_APP_ID` | `PRD_PAL_GITHUB_APP_ID` | App mode |
-| `MARRDP_GITHUB_PRIVATE_KEY` | `PRD_PAL_GITHUB_PRIVATE_KEY` | PEM private key |
-| `MARRDP_GITHUB_INSTALLATION_ID` | `PRD_PAL_GITHUB_INSTALLATION_ID` | App installation |
-| `MARRDP_GITHUB_TOKEN` | `PRD_PAL_GITHUB_TOKEN` | PAT fallback (`GITHUB_TOKEN` also accepted) |
-| `MARRDP_GITHUB_AUTH_MODE` | `PRD_PAL_GITHUB_AUTH_MODE` | `app` or `pat` |
-| `MARRDP_GITHUB_API_BASE_URL` | `PRD_PAL_GITHUB_API_BASE_URL` | Enterprise GitHub base URL |
-
-Local development:
+Local mock:
 
 ```dotenv
 MARRDP_GITHUB_SIGNATURE_DISABLED=true
 MARRDP_GITHUB_TOKEN=ghp_...
 ```
 
-Production (App):
+Production-style:
 
 ```dotenv
 MARRDP_GITHUB_SIGNATURE_DISABLED=false
@@ -163,21 +142,21 @@ MARRDP_GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
 
 ## Shared API security
 
-For all callback routes exposed on a shared host, also configure:
+For all non-webhook routes on a shared host, configure:
 
 ```dotenv
-MARRDP_API_AUTH_DISABLED=false
-MARRDP_API_KEY=your-api-key
-# PRD_PAL_API_KEY=your-api-key
+PM_PAL_API_AUTH_DISABLED=false
+PM_PAL_API_KEY=your-api-key
+# MARRDP_API_AUTH_DISABLED / MARRDP_API_KEY also accepted
 ```
 
-Note: Feishu run-level H5 requests may omit API keys when valid Feishu context is present on project-scoped review routes. Webhook ingress routes verify connector signatures instead of API keys.
+Note: Feishu run-level H5 requests may omit API keys when valid Feishu context is present on project-scoped review routes. Webhook ingress routes (`/api/{feishu,github,notion}/events`) verify connector signatures instead of API keys.
 
 ## Smoke-test checklist
 
-1. `GET /health` returns `"service": "prd-pal"`
+1. `GET /health` returns `"service": "pm-pal"` (or equivalent ok payload)
 2. Feishu `url_verification` challenge on `/api/feishu/events`
-3. One signed `/api/feishu/submit` or project-scoped review from a Feishu source
+3. One project-scoped review from a Feishu-backed source (`POST /api/projects/{project_id}/reviews`)
 4. Notion verification handshake on `/api/notion/events`
 5. GitHub `ping` or push event on `/api/github/events` with valid `X-Hub-Signature-256`
 6. Confirm connector sync tasks appear in project timeline after webhook delivery

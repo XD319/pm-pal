@@ -1,4 +1,4 @@
-# prd-pal
+# pm-pal
 
 [中文](./README.md) | [English](./README.en.md)
 
@@ -10,168 +10,177 @@
 ![Feishu](https://img.shields.io/badge/Feishu-Integrated-3370FF)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)
 
-`prd-pal` is a PRD and requirement review service organized around **project space**: create projects, attach sources, start reviews, and inspect run history. Feishu remains the primary end-user entry; Web and CLI are retained for trial, integration, and development.
+**An agent for product managers’ daily work** — connect feedback, evidence, insights, PRDs, reviews, and delivery into one confirmable loop so PMs spend less time on busywork and more on decisions.
 
-## What Project Space Delivers
+Self-hosted and private-deployable. Data stays in your project space by default. Use the Web workspace, Feishu, CLI, or MCP.
 
-1. Create projects and configure model connections
-2. Add PRD sources (text, files, Feishu/Notion/GitHub/URL links)
-3. Start reviews from project sources (`POST /api/projects/{project_id}/reviews`)
-4. View run status, results, reports, and follow-up actions inside the project
-5. Sync external document changes through connector webhooks
+---
 
-## 30-Second Start
+## Why pm-pal
 
-1. Follow [docs/quick-start.md](./docs/quick-start.md) to start locally
-2. Open the web home page, create a project, and add a sample PRD source
-3. Start a review from the project page and open the result view
-4. Optionally wire Feishu using [docs/feishu-setup.md](./docs/feishu-setup.md)
+Product managers often burn time on:
 
-## Requirements
+- Pulling evidence from Feishu docs, notes, and meeting minutes
+- Turning scattered feedback into insights and opportunities
+- Drafting and revising PRDs
+- Running reviews, clarifying questions, and preparing engineering handoff
 
-- Python `3.11+`
-- Node.js `22+`
-- A valid model API key
+`pm-pal` uses an **Agent + project space** to carry that workflow: you describe the job, the agent drafts the work, and **important actions only run after you confirm** — never silently overwrite source documents.
 
-## Connectors Overview
+## Features
 
-| Connector | Purpose | Realtime callback |
-|-----------|---------|-------------------|
-| Feishu | Feishu docs, events, submit | `POST /api/feishu/events`, `/api/feishu/submit` |
-| Notion | Notion page ingestion | `POST /api/notion/events` |
-| GitHub | README, issues, PRs | `POST /api/github/events` |
-| URL | Public web pages | — |
-| Local file | Local file paths | — |
+- **Agent workspace** — Ask in natural language (analyze feedback, generate opportunities, prepare a review); approve actions under Confirmations
+- **Project space** — Materials, decisions, and deliveries stay scoped to a project with traceable context
+- **Evidence → insight → opportunity → PRD** — End-to-end path from raw inputs to shippable docs
+- **PRD / requirement review** — Multi-role review, risks, open questions, and exportable reports
+- **Connectors** — Feishu, Notion, GitHub, URL, and local files, with webhook sync
+- **Multiple entry points** — Web, Feishu H5, CLI (`pm-pal`), and MCP for IDE / automation agents
+- **Self-hosted** — Keys and artifacts stay in your environment; bring your own model API
 
-See [docs/callback-config.md](./docs/callback-config.md) for webhook and signature setup.
+## Workflow
 
-## Recommended Reading
+```text
+Collect materials / attach docs
+        ↓
+Ask Agent → Confirm
+        ↓
+Insights / opportunities / PRD draft
+        ↓
+Review · clarify · revise
+        ↓
+Deliverables / handoff / roadmap
+```
 
-- Project space and review APIs:
-  - [docs/project-space.md](./docs/project-space.md)
-  - [docs/v2-api.md](./docs/v2-api.md)
-- Quick start:
-  - [docs/quick-start.md](./docs/quick-start.md)
-- Feishu rollout:
-  - [docs/feishu-setup.md](./docs/feishu-setup.md)
-  - [docs/feishu-user-guide.md](./docs/feishu-user-guide.md)
-- Deployment and callbacks:
-  - [docs/deployment-guide.md](./docs/deployment-guide.md)
-  - [docs/callback-config.md](./docs/callback-config.md)
+| Page | Purpose |
+|------|---------|
+| `/workspace` | Home: chats, Ask Agent, project picker |
+| `/materials` | Evidence and PRD sources |
+| `/decisions` | Insights and opportunities |
+| `/deliveries` | PRD versions and delivery records |
+| `/confirmations` | Approve or dismiss agent actions |
+| `/settings` | Model connection status |
 
-## Local Quick Start
+## Quick start
 
-### 1. Clone
+### Requirements
+
+- Python 3.11+
+- Node.js 22+
+- A model API key (e.g. OpenAI)
+
+### Install and run
 
 ```bash
 git clone <your-repo-url>
-cd prd-pal
-```
+cd pm-pal
 
-### 2. Configure `.env`
-
-```bash
-copy .env.example .env
-```
-
-Minimum local setup:
-
-```dotenv
-OPENAI_API_KEY=your-key
-SMART_LLM=openai:gpt-5-nano
-FAST_LLM=openai:gpt-5-nano
-STRATEGIC_LLM=openai:gpt-5-nano
-```
-
-### 3. Install dependencies
-
-```bash
 python -m venv .venv
-.venv\Scripts\activate
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -e .
+
+cp .env.example .env   # Windows: copy .env.example .env
+# Edit .env: set OPENAI_API_KEY and PM_PAL_LLM (or LLM)
+
 cd frontend && npm install && cd ..
 ```
 
-### 4. Start services
+Windows helper:
 
 ```bash
 start-dev.cmd
 ```
 
-Default addresses:
-
-- Frontend: `http://127.0.0.1:5173`
-- Backend: `http://127.0.0.1:8000`
-- Health: `http://127.0.0.1:8000/health`
-- Ready: `http://127.0.0.1:8000/ready`
-
-### 5. Validate the local flow
-
-1. Create a project on the home page
-2. Add a sample PRD source and start a review
-3. Confirm the result page shows progress, summary, and report downloads
-
-CLI alternative:
+Or start separately:
 
 ```bash
-prd-pal review --input docs/sample_prd.md
+python main.py                 # API → http://127.0.0.1:8000
+cd frontend && npm run dev     # UI  → http://127.0.0.1:5173
 ```
 
-## Docker
+Open [http://127.0.0.1:5173/workspace](http://127.0.0.1:5173/workspace):
+
+1. Create a project  
+2. Add a PRD under Materials (try `docs/sample_prd.md`)  
+3. Use Ask Agent, then approve under Confirmations  
+
+Details: [docs/quick-start.md](./docs/quick-start.md).
+
+### Docker
 
 ```bash
 docker-compose up --build
+# Optional Vite frontend: docker-compose --profile dev up dev
 ```
 
-Dev-mode frontend:
+## Usage
+
+### Web (local / trial)
+
+Workspace: `http://127.0.0.1:5173/workspace`  
+Health: `http://127.0.0.1:8000/health`
+
+### Feishu (optional team entry)
+
+View results and answer clarifications inside Feishu. Webhook and signature setup: [docs/callback-config.md](./docs/callback-config.md).
+
+### CLI
 
 ```bash
-docker-compose --profile dev up dev
+pm-pal review --input docs/sample_prd.md
+pm-pal doctor
 ```
 
-## Common Entry Points
-
-### Web (project space)
-
-- Home: `http://127.0.0.1:5173/`
-- Review API prefix: `/api/projects/{project_id}/reviews`
-
-### Feishu (primary user entry)
-
-- Work entry: `https://<your-domain>/feishu`
-- H5 result URL: `/run/<run_id>?embed=feishu&open_id=<open_id>&tenant_key=<tenant_key>`
-
-### CLI / MCP
+### MCP
 
 ```bash
-prd-pal review --input docs/sample_prd.md
-python -m prd_pal.mcp_server.server
+python -m pm_pal.mcp_server.server
 ```
 
-### Primary HTTP APIs (project-scoped)
+See [docs/mcp.md](./docs/mcp.md).
 
-- `POST /api/projects/{project_id}/reviews` — start a review
-- `GET /api/projects/{project_id}/reviews/{run_id}` — poll status
-- `GET /api/projects/{project_id}/reviews/{run_id}/result` — structured result
-- `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv` — download report
+## Configuration
 
-Global `/api/review` routes were removed in Phase 2. See [docs/v2-api.md](./docs/v2-api.md).
+Copy `.env.example` to `.env`. Common variables:
 
-## Outputs
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` / other provider keys | Model credentials |
+| `PM_PAL_LLM` (or `LLM`) | Single model selection, e.g. `openai:gpt-5-nano`; legacy `SMART_LLM` etc. still work as fallbacks |
+| `PM_PAL_SECRETS_MASTER_KEY` | Required to save provider keys in Settings |
+| `PM_PAL_DATA_DIR` | Data root (default `data/`, SQLite + outputs) |
+| `PM_PAL_API_AUTH_DISABLED` | Auth off by default locally; enable with `PM_PAL_API_KEY` for shared hosts |
+| `MARRDP_FEISHU_*` etc. | Feishu / Notion / GitHub connectors |
 
-Each run writes artifacts under `outputs/<run_id>/`:
+Full reference: [.env.example](./.env.example), [docs/callback-config.md](./docs/callback-config.md).
 
-- `report.md`, `report.json`, `run_trace.json`
-- parallel review path may also include `review_report.json`, `risk_items.json`, `open_questions.json`, `review_summary.md`
+## Documentation
 
-## Validation
+| Doc | Topic |
+|-----|-------|
+| [docs/quick-start.md](./docs/quick-start.md) | First successful run |
+| [docs/project-space.md](./docs/project-space.md) | Project space, workspace UI & Agent |
+| [docs/v2-api.md](./docs/v2-api.md) | HTTP API |
+| [docs/deployment-guide.md](./docs/deployment-guide.md) | Deployment |
+| [docs/callback-config.md](./docs/callback-config.md) | Feishu / Notion / GitHub callbacks |
+| [docs/mcp.md](./docs/mcp.md) | MCP integration |
+
+## Development
 
 ```bash
 pytest -q
 cd frontend && npm test -- --run && npm run build
 ```
 
+Issues and PRs are welcome. Keep changes focused and include repro steps or screenshots when helpful.
 
-## Decision Workbench Demo
+## Security & deployment notes
 
-Run prd-pal demo seed (no API key required), then open /workbench?product_id=demo-mobile-commerce. The workbench demonstrates the evidence -> agent draft -> human approval -> PRD quality gate -> delivery trace. See [docs/decision-workbench-demo.md](docs/decision-workbench-demo.md).
+- Best suited for local or private networks; enable API auth and TLS for shared deployments
+- Agent defaults to draft-then-confirm; it does not overwrite source documents unprompted
+- Single-instance: in-process SSE does not span replicas; persist `PM_PAL_DATA_DIR`
+- Docker Compose mounts `./data:/app/data` and sets `PM_PAL_DATA_DIR=/app/data`
+
+## License
+
+Apache License 2.0 — see [LICENSE](./LICENSE).

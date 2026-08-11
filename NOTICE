@@ -9,9 +9,9 @@ https://github.com/assafelovic/gpt-researcher
 GPT Researcher is licensed under the Apache License, Version 2.0.
 As of this repository state, the most direct retained lineage is in:
 
-- prd_pal/runtime/llm_provider/__init__.py
-- prd_pal/runtime/llm_provider/generic/base.py
-- prd_pal/runtime/utils/llm.py
+- pm_pal/runtime/llm_provider/__init__.py
+- pm_pal/runtime/llm_provider/generic/base.py
+- pm_pal/runtime/utils/llm.py
 
 Those files have been modified for this project's requirement-review runtime,
 including provider loading changes, runtime configuration alignment, streaming

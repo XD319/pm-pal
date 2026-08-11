@@ -1,4 +1,4 @@
-﻿# Requirement Review MCP Guide
+# Requirement Review MCP Guide
 
 This document explains how to run the repository's MCP server with review-first positioning.
 
@@ -25,7 +25,7 @@ As a default boundary:
 ## Start The MCP Server
 
 ```powershell
-python -m prd_pal.mcp_server.server
+python -m pm_pal.mcp_server.server
 ```
 
 The server uses stdio transport and is normally launched by an MCP client.
@@ -56,7 +56,7 @@ These are the primary tools to emphasize:
 Recommended input choice:
 
 - Use `prd_text` for strong callers that already fetched the requirement content.
-- Use `source` for weak callers that need prd-pal to fetch and normalize the source document.
+- Use `source` for weak callers that need pm-pal to fetch and normalize the source document.
 
 Recommended first integration flow:
 
@@ -72,31 +72,11 @@ Feishu source setup:
 - Use `MARRDP_FEISHU_OPEN_BASE_URL` only when you need a non-default Open API base URL.
 - Supported Feishu document types are `wiki`, `docx`, and legacy `docs` sources that can be converted to `docx`.
 
-## MCP And Feishu Plugin Boundary
+## MCP vs HTTP / Feishu
 
-The Feishu main-entry pluginization does not replace the MCP server.
+Use MCP when an IDE agent or automation can call tools over stdio and already has its own access control.
 
-Use MCP when:
-
-- an internal tool, IDE agent, or automation wants to call `review_requirement` directly
-- the caller already has its own identity and access-control layer
-- you do not need Feishu callback routing or H5 rendering
-
-Use the FastAPI Feishu entry layer when:
-
-- the caller is a Feishu app, plugin, bot, or card action
-- you need `/api/feishu/events`, `/api/feishu/submit`, or `/api/feishu/clarification`
-- you need the compact result page at `/run/<run_id>?embed=feishu`
-- you want run-level Feishu entry metadata and lightweight access checks persisted under `outputs/<run_id>/`
-
-Recommended production split:
-
-1. Deploy one backend instance.
-2. Enable Feishu app credentials and webhook verification in that backend.
-3. Let Feishu traffic hit the FastAPI layer.
-4. Let internal automation and agent workflows keep using MCP.
-
-This keeps review logic single-sourced while leaving protocol adaptation in the HTTP integration layer.
+Use FastAPI when you need project space, webhooks (`/api/feishu/events` etc.), or shared multi-user hosting. Start reviews with `POST /api/projects/{project_id}/reviews` — not the removed `/api/feishu/submit`. Connector env and signatures: [callback-config.md](./callback-config.md).
 
 ## Core Example
 
@@ -136,6 +116,8 @@ Prepare all supported downstream handoffs from the same run:
 ```
 
 ## Core Outputs
+
+HTTP server runs write under `{PM_PAL_DATA_DIR}/outputs/<run_id>/` (default `data/outputs/`). MCP/CLI may use `--outputs-root` (CLI default `outputs`).
 
 Every review run centers on:
 
@@ -194,7 +176,7 @@ This is optional and should not be confused with the main review architecture.
 ## Notes For Client Authors
 
 - Prefer `prd_text` for strong clients that can already fetch and normalize source content.
-- Prefer `source` when the client is intentionally delegating document fetch and normalization to prd-pal.
+- Prefer `source` when the client is intentionally delegating document fetch and normalization to pm-pal.
 - Keep `prd_text` and `prd_path` for backward compatibility.
 - Treat `review_requirement` as the review-only facade.
 - Treat `review_prd` as the richer compatibility surface when you intentionally need bundle-adjacent artifact paths in the same response.

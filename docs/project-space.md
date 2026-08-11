@@ -1,41 +1,73 @@
-# Project Space (self-hosted)
+# Project Space
 
-PRD Pal now starts in a project space. Create a project, add PRD text or a Feishu/document link, then start review from the selected source. Each run is listed under the project and accessed through project-scoped review APIs.
+PM Pal organizes work around a **project space**. Create a project, add materials (evidence / PRD sources), drive tasks through the Agent, then review and deliver.
+
+## Web UI
+
+| Route | Purpose |
+|-------|---------|
+| `/workspace` | Home, conversations, Ask Agent |
+| `/materials` | Evidence + PRD sources |
+| `/decisions` | Insights / opportunities |
+| `/deliveries` | PRD versions + delivery records |
+| `/confirmations` | Pending Agent tasks |
+| `/settings` | Provider / secrets status |
+
+Bind context with `?project_id=<id>` (optional `conversation_id`).
+
+### Recommended flow
+
+1. Open `/workspace`, create or select a project.
+2. Under **Materials**, attach a PRD (Feishu URL, file upload, or paste).
+3. Use **Ask Agent**; approve or dismiss under **Confirmations**.
+4. Review outcomes under **Decisions** / **Deliveries**; start a formal review via API when needed.
+
+Agent defaults to draft-then-confirm and does not overwrite source documents. See `/api/agent/*` below.
 
 ## Review APIs
 
-Legacy global routes such as `POST /api/review`, `GET /api/runs`, and `GET /api/report/{run_id}` were removed in Phase 2. Use project-scoped endpoints instead:
+- `POST /api/projects/{project_id}/reviews` — start from a project source (`source_id`)
+- `GET /api/projects/{project_id}/reviews/{run_id}` — status
+- `GET .../result` · `.../report?format=md|json|html|csv`
+- `GET /api/projects/by-run/{run_id}` — resolve project for a run
 
-- `POST /api/projects/{project_id}/reviews` — start a review from a project source
-- `GET /api/projects/{project_id}/reviews/{run_id}` — poll status
-- `GET /api/projects/{project_id}/reviews/{run_id}/result` — fetch structured results
-- `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv` — download reports
+HTTP details and examples: [v2-api.md](./v2-api.md).
 
-The `/run/{run_id}` frontend path still works via redirect to the linked project review page.
+## Agent APIs
 
-## Configure your model provider
+- `POST /api/agent/conversations` · `POST .../messages`
+- `GET /api/agent/conversations` · `GET .../{id}`
+- `GET /api/agent/tasks/{id}` · `POST .../confirm` · `POST .../retry`
+- `GET /api/agent/tasks/{id}/progress/stream` — SSE
 
-1. Generate an encryption key and put it in `.env`:
+## Domain objects
 
-   ```powershell
-   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
+Under `/api/projects/{project_id}/`: evidence, insights, opportunities, prd-versions, deliveries, summary, trace (see OpenAPI / source routers).
 
-   Set the result as `MARRDP_SECRETS_MASTER_KEY`.
-2. Open **Model connections** in the app.
-3. Select a provider, enter its API key and optional base URL, then save and validate it.
-4. Create a model preset and choose it for a project.
+## Model provider
 
-Secrets are encrypted in `data/project_space.sqlite3`, are never returned by the API, and must not be committed to Git. The current instance owner pays their provider directly. Ollama can be configured without an API key.
+1. Generate a Fernet key and set `PM_PAL_SECRETS_MASTER_KEY` (or `MARRDP_SECRETS_MASTER_KEY`).
+2. Check **Settings** for connection status; local runs can use `.env` model keys without saved connections.
+3. Optional: create model presets via API and attach them to a project.
 
-Provider entries are shown even when their optional Python package is absent; the UI will state the package to install before validation.
+Secrets live in `{PM_PAL_DATA_DIR}/project_space.sqlite3` and are never returned by the API.
 
-## Connectors and realtime sync
+## Data layout
 
-Supported source connectors: Feishu, Notion, GitHub, URL, local file. Webhook callbacks sync external changes into project sources:
+| Path | Contents |
+|------|----------|
+| `PM_PAL_DATA_DIR` (default `data/`) | SQLite, connector state |
+| `{PM_PAL_DATA_DIR}/outputs/<run_id>/` | Review artifacts |
+| `.../workspace.sqlite3` | Workspace helpers |
+| `.../project_space.sqlite3` | Projects, sources, providers, domain objects |
 
-- Feishu: `/api/feishu/events`, `/api/feishu/submit`
-- Notion: `/api/notion/events`
-- GitHub: `/api/github/events`
+CLI default `--outputs-root` is repo-relative `outputs` unless overridden; the HTTP server uses `PM_PAL_DATA_DIR`.
 
-See [callback-config.md](./callback-config.md) for signature and encrypt settings.
+## Connectors
+
+Feishu / Notion / GitHub / URL / local file. Webhooks enqueue sync for a single in-process worker.
+
+- Events: `/api/feishu/events`, `/api/notion/events`, `/api/github/events`
+- `POST /api/feishu/submit` → **410**; use project-scoped reviews
+
+Signature and env vars: [callback-config.md](./callback-config.md).

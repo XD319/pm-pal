@@ -1,12 +1,12 @@
 # Deployment Guide
 
-This guide describes recommended adoption paths for prd-pal with project space as the primary product surface.
+This guide describes recommended adoption paths for pm-pal with project space (workspace-v5 UI) as the primary product surface.
 
 Start here for first-time setup:
 
 - [quick-start.md](./quick-start.md)
 - [project-space.md](./project-space.md)
-- [feishu-setup.md](./feishu-setup.md)
+- [callback-config.md](./callback-config.md)
 
 ## Path 1: Local Skill + Local Repository
 
@@ -19,8 +19,8 @@ Use this when:
 Recommended entrypoints:
 
 - local skill: `skills/prd-review-agent/`
-- CLI: `python -m prd_pal.main review --input <file> --json`
-- MCP: `python -m prd_pal.mcp_server.server`
+- CLI: `python -m pm_pal.main review --input <file> --json` (or `pm-pal review ...`)
+- MCP: `python -m pm_pal.mcp_server.server`
 - preferred caller contract: `prd_text` / local files first, connector-backed `source` only when explicitly needed
 
 ## Path 2: Shared Service + Project Space UI
@@ -35,7 +35,7 @@ Recommended entrypoints:
 
 - remote skill: `skills/prd-review-service/`
 - HTTP API: project-scoped FastAPI routes on port `8000`
-- Web UI: React project space at `/`
+- Web UI: workspace-v5 shell at `/` (routes `/workspace`, `/materials`, `/decisions`, `/deliveries`, `/confirmations`, `/settings`)
 - preferred caller contract: create/select a project, attach sources, then `POST /api/projects/{project_id}/reviews`
 
 ## Recommended System Boundary
@@ -56,20 +56,24 @@ docker-compose up --build
 
 The container exposes:
 
-- `GET /health` — process health (`service: prd-pal`)
-- `GET /ready` — startup completion and outputs-directory writability
-- `GET/POST /api/projects/...` — project space management and reviews
-- `POST /api/feishu/events`, `/api/feishu/submit`, `/api/feishu/clarification`
-- `POST /api/notion/events`, `POST /api/github/events` — connector sync webhooks
+- `GET /health` — process health, connector worker snapshot, single-instance note
+- `GET /ready` — startup, writable `PM_PAL_DATA_DIR`, project_space DB, connector worker alive
+- `GET/POST /api/projects/...` — project space (materials, evidence, insights, opportunities, PRD, delivery, reviews)
+- `POST /api/agent/...` — conversation command layer (no parallel business store)
+- `POST /api/feishu/events`, `/api/github/events`, `/api/notion/events` — signed webhooks enqueue SQLite sync tasks
 
-Legacy global routes such as `POST /api/review` and `GET /api/report/{run_id}` were removed in Phase 2. Use project-scoped report routes instead.
+Compose mounts `./data:/app/data` and sets `PM_PAL_DATA_DIR=/app/data` so SQLite, outputs (`/app/data/outputs`), audit, and connector state persist across restarts.
+
+**Single-instance constraint:** in-process SSE only reaches clients on the same replica. Do not scale to multiple app replicas without an external event bus.
+
+Legacy `/api/pm`, `/api/decision`, `/api/v1` (product-agent), global `/api/review`, and Feishu `POST /api/feishu/submit` (410) have been removed.
 
 ## Health Checks
 
 Use these checks for load balancers, orchestrators, and monitoring:
 
-- `GET /health` — process-level health
-- `GET /ready` — startup completion plus output-directory writability
+- `GET /health` — process-level health plus connector worker snapshot
+- `GET /ready` — startup completion, data/output writability, DB availability, connector worker
 
 `Dockerfile` and `docker-compose.yml` include health checks using `/health`.
 
@@ -77,13 +81,16 @@ Use these checks for load balancers, orchestrators, and monitoring:
 
 For production webhook setup (Feishu encrypt/signature, Notion signing, GitHub App/PAT), read [callback-config.md](./callback-config.md).
 
+Webhook handlers only enqueue or merge SQLite sync tasks; the lifespan-started single worker pulls, normalizes, and writes project materials/evidence with exponential backoff.
+
 ## Security Notes
 
 - Prefer private deployment for internal PRDs.
 - Use local-skill mode when PRD text should not leave the developer machine.
 - For remote skill mode, prefer submitting `prd_text` directly instead of remote connector sources unless explicitly needed.
 - If connector-backed `source` is enabled, treat third-party auth, permissions, and rate limits as integration-layer concerns rather than the core review contract.
-- Configure `MARRDP_API_AUTH_DISABLED=false` and API credentials for shared deployments.
+- Configure `PM_PAL_API_AUTH_DISABLED=false` and `PM_PAL_API_KEY` for shared deployments (startup fails if auth is on without a key). `MARRDP_*` equivalents are still accepted.
+- Only `/api/{feishu,github,notion}/events` bypass API-key auth; signature verification still applies inside those routers.
 - Do not return full report payloads or auth headers to users unless they explicitly ask for them.
 
 ## Recommended Rollout
@@ -99,7 +106,7 @@ For production webhook setup (Feishu encrypt/signature, Notion signing, GitHub A
 
 ## CI Validation
 
-GitHub Actions workflow `.github/workflows/ci.yml` runs:
+GitHub Actions under `.github/workflows/` (currently `build.yml`) typically runs:
 
 - `pip install -e ".[test]"` and `pytest -q`
 - `npm ci`, `npm test -- --run`, and `npm run build` in `frontend/`

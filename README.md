@@ -1,4 +1,4 @@
-# prd-pal
+# pm-pal
 
 [中文](./README.md) | [English](./README.en.md)
 
@@ -10,178 +10,177 @@
 ![Feishu](https://img.shields.io/badge/Feishu-Integrated-3370FF)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)
 
-`prd-pal` 是一个面向 PRD/需求文档的评审服务。默认以 **项目空间（Project Space）** 组织工作：创建项目、添加来源、发起评审、查看历史运行记录。飞书仍是面向普通用户的主入口；Web 与 CLI 保留为试用、联调和开发入口。
+**面向产品经理的日常工作 Agent** —— 把反馈、证据、洞察、PRD、评审与交付串成一条可确认的闭环，帮 PM 少做重复整理，多做关键决策。
 
-## 项目空间能做什么
+自托管、可私有化部署；数据默认落在本机项目空间。支持 Web 工作台、飞书入口、CLI 与 MCP。
 
-1. 创建项目并配置模型连接
-2. 添加 PRD 来源（正文、文件、Feishu/Notion/GitHub/URL 链接）
-3. 从项目来源发起评审（`POST /api/projects/{project_id}/reviews`）
-4. 在项目内查看运行状态、结果、报告与后续澄清/修订/交付动作
-5. 通过连接器 webhook 同步外部文档变更
+---
 
-## 飞书主流程（公开叙事）
+## 为什么需要 pm-pal
 
-面向普通用户的默认流程：
+产品经理日常大量时间花在：
 
-发起评审 → 查看结果 → 回答澄清 → 选择是否修订 PRD → （可选）上传会议纪要和额外要求 → 生成并确认修订版 → 生成 handoff / roadmap
+- 从飞书/文档/会议纪要里捞证据
+- 把零散反馈整理成洞察与机会
+- 起草与修订 PRD
+- 组织评审、澄清问题、准备研发 handoff
 
-关键约定：
+`pm-pal` 用 **Agent + 项目空间** 承接这些流程：你提任务，Agent 生成草案；**关键动作需你确认后才执行**，不会静默覆盖原文。
 
-- 修订版是草稿/派生版本，不会自动覆盖原文
-- handoff / roadmap 默认基于“已确认的修订版”生成
-- 若你选择不修订，也可以直接继续后续交付（兼容旧流程）
+## 功能特性
 
-## 30 秒上手
+- **Agent 工作台** — 用自然语言下达任务（分析反馈、生成机会、准备评审等），在「待确认」中审批执行
+- **项目空间** — 按项目沉淀资料、决策与成果，上下文可追溯
+- **证据 → 洞察 → 机会 → PRD** — 从收集材料到可交付文档的完整链路
+- **PRD / 需求评审** — 多角色评审、风险与开放问题、报告导出
+- **连接器** — Feishu / Notion / GitHub / URL / 本地文件，支持 webhook 同步
+- **多种入口** — Web、飞书 H5、CLI（`pm-pal`）、MCP（给 IDE / 自动化 Agent 用）
+- **自托管** — 密钥与产物留在你的环境，按需接入自己的模型 API
 
-1. 按 [docs/quick-start.md](./docs/quick-start.md) 启动本地服务
-2. 打开 Web 首页，创建项目并添加 sample PRD 来源
-3. 从项目页发起评审并打开结果页
-4. （可选）按 [docs/feishu-setup.md](./docs/feishu-setup.md) 接入飞书主入口
+## 工作流一览
 
-## 环境要求
+```text
+收集资料 / 接入文档
+        ↓
+询问 Agent → 待确认
+        ↓
+洞察 / 机会 / PRD 草案
+        ↓
+评审 · 澄清 · 修订
+        ↓
+交付物 / handoff / roadmap
+```
 
-- Python `3.11+`
-- Node.js `22+`
-- 一个可用的模型 API Key
-- Windows 本地开发可直接使用仓库内脚本；macOS/Linux 可用 `python` + `npm` 或 Docker
+| 页面 | 做什么 |
+|------|--------|
+| `/workspace` | 工作台：对话、询问 Agent、切换项目 |
+| `/materials` | 资料：证据与 PRD 来源 |
+| `/decisions` | 决策：洞察与机会 |
+| `/deliveries` | 成果：PRD 版本与交付记录 |
+| `/confirmations` | 待确认：批准或忽略 Agent 动作 |
+| `/settings` | 设置：模型连接状态 |
 
-## 连接器概览
+## 快速开始
 
-| 连接器 | 用途 | 实时同步回调 |
-|--------|------|--------------|
-| Feishu | 飞书文档读取、事件与提审 | `POST /api/feishu/events`, `/api/feishu/submit` |
-| Notion | Notion 页面读取 | `POST /api/notion/events` |
-| GitHub | README/Issues/PR 等仓库内容 | `POST /api/github/events` |
-| URL | 抓取公开网页 | — |
-| Local file | 本地文件路径 | — |
+### 环境要求
 
-Webhook 与签名校验配置见 [docs/callback-config.md](./docs/callback-config.md)。
+- Python 3.11+
+- Node.js 22+
+- 可用的模型 API Key（如 OpenAI）
 
-## 一、推荐阅读顺序
-
-- 项目空间与评审 API：
-  - [docs/project-space.md](./docs/project-space.md)
-  - [docs/v2-api.md](./docs/v2-api.md)
-- 快速启动：
-  - [docs/quick-start.md](./docs/quick-start.md)
-- 飞书接入（主入口）：
-  - [docs/feishu-setup.md](./docs/feishu-setup.md)
-  - [docs/feishu-user-guide.md](./docs/feishu-user-guide.md)
-- 部署与回调：
-  - [docs/deployment-guide.md](./docs/deployment-guide.md)
-  - [docs/callback-config.md](./docs/callback-config.md)
-
-## 二、本地快速跑通
-
-### 1. 下载仓库
+### 安装与启动
 
 ```bash
 git clone <your-repo-url>
-cd prd-pal
-```
+cd pm-pal
 
-### 2. 配置环境变量
-
-```bash
-copy .env.example .env
-```
-
-本地最小可用配置：
-
-```dotenv
-OPENAI_API_KEY=your-key
-SMART_LLM=openai:gpt-5-nano
-FAST_LLM=openai:gpt-5-nano
-STRATEGIC_LLM=openai:gpt-5-nano
-```
-
-### 3. 安装依赖
-
-```bash
 python -m venv .venv
-.venv\Scripts\activate
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -e .
+
+cp .env.example .env   # Windows 可用: copy .env.example .env
+# 编辑 .env，至少填入 OPENAI_API_KEY 与 PM_PAL_LLM（或 LLM）
+
 cd frontend && npm install && cd ..
 ```
 
-### 4. 启动服务
-
-Windows 推荐：
+Windows 一键启动：
 
 ```bash
 start-dev.cmd
 ```
 
-默认地址：
-
-- 前端: `http://127.0.0.1:5173`
-- 后端: `http://127.0.0.1:8000`
-- 健康检查: `http://127.0.0.1:8000/health`
-- 就绪检查: `http://127.0.0.1:8000/ready`
-
-### 5. 验证本地链路
-
-1. 打开首页，创建项目
-2. 添加 sample PRD 来源并发起评审
-3. 确认结果页显示进度、总结和报告下载
-
-CLI 替代路径：
+或分别启动：
 
 ```bash
-prd-pal review --input docs/sample_prd.md
+python main.py                 # API → http://127.0.0.1:8000
+cd frontend && npm run dev     # UI  → http://127.0.0.1:5173
 ```
 
-## 三、Docker 跑通
+打开 [http://127.0.0.1:5173/workspace](http://127.0.0.1:5173/workspace)：
+
+1. 新建项目  
+2. 在「资料」中粘贴或上传 PRD（可用 `docs/sample_prd.md`）  
+3. 用「询问 Agent」描述任务，并在「待确认」中批准  
+
+更细的步骤见 [docs/quick-start.md](./docs/quick-start.md)。
+
+### Docker
 
 ```bash
 docker-compose up --build
+# 可选开发前端: docker-compose --profile dev up dev
 ```
 
-开发模式前端：
+## 使用方式
+
+### Web（推荐本地 / 试用）
+
+工作台地址：`http://127.0.0.1:5173/workspace`  
+健康检查：`http://127.0.0.1:8000/health`
+
+### 飞书（可选团队入口）
+
+可在飞书内查看结果与回答澄清；事件回调与签名配置见 [docs/callback-config.md](./docs/callback-config.md)。
+
+### CLI
 
 ```bash
-docker-compose --profile dev up dev
+pm-pal review --input docs/sample_prd.md
+pm-pal doctor
 ```
 
-## 四、常用入口
-
-### Web（项目空间）
-
-- 首页: `http://127.0.0.1:5173/`
-- 项目评审 API 前缀: `/api/projects/{project_id}/reviews`
-
-### Feishu（主入口）
-
-- 飞书工作入口: `https://<your-domain>/feishu`
-- H5 结果页: `/run/<run_id>?embed=feishu&open_id=<open_id>&tenant_key=<tenant_key>`
-
-### CLI / MCP
+### MCP
 
 ```bash
-prd-pal review --input docs/sample_prd.md
-python -m prd_pal.mcp_server.server
+python -m pm_pal.mcp_server.server
 ```
 
-### 主要 HTTP API（项目域）
+工具说明见 [docs/mcp.md](./docs/mcp.md)。
 
-- `POST /api/projects/{project_id}/reviews` — 发起评审
-- `GET /api/projects/{project_id}/reviews/{run_id}` — 轮询状态
-- `GET /api/projects/{project_id}/reviews/{run_id}/result` — 结构化结果
-- `GET /api/projects/{project_id}/reviews/{run_id}/report?format=md|json|html|csv` — 下载报告
+## 配置说明
 
-全局 `/api/review` 路由已在 Phase 2 移除；详见 [docs/v2-api.md](./docs/v2-api.md)。
+复制 `.env.example` 为 `.env`。常见项：
 
-## 五、输出物
+| 变量 | 说明 |
+|------|------|
+| `OPENAI_API_KEY` / 其他厂商 Key | 模型调用凭证 |
+| `PM_PAL_LLM`（或 `LLM`） | 单模型选型，如 `openai:gpt-5-nano`；旧 `SMART_LLM` 等仍可作为回退 |
+| `PM_PAL_SECRETS_MASTER_KEY` | 在设置页保存 provider Key 时需要 |
+| `PM_PAL_DATA_DIR` | 数据目录（默认 `data/`，含 SQLite 与 outputs） |
+| `PM_PAL_API_AUTH_DISABLED` | 本地默认关闭鉴权；共享部署请开启并配置 `PM_PAL_API_KEY` |
+| `MARRDP_FEISHU_*` 等 | 飞书 / Notion / GitHub 连接器（见 callback 文档） |
 
-每次运行默认写到 `outputs/<run_id>/`：
+完整说明：[.env.example](./.env.example)、[docs/callback-config.md](./docs/callback-config.md)。
 
-- `report.md`, `report.json`, `run_trace.json`
-- 并行评审路径下可能还有 `review_report.json`, `risk_items.json`, `open_questions.json`, `review_summary.md`
+## 文档
 
-## 六、验证
+| 文档 | 内容 |
+|------|------|
+| [docs/quick-start.md](./docs/quick-start.md) | 第一次跑通 |
+| [docs/project-space.md](./docs/project-space.md) | 项目空间、工作台与 Agent |
+| [docs/v2-api.md](./docs/v2-api.md) | HTTP API |
+| [docs/deployment-guide.md](./docs/deployment-guide.md) | 部署与边界 |
+| [docs/callback-config.md](./docs/callback-config.md) | 飞书 / Notion / GitHub 回调 |
+| [docs/mcp.md](./docs/mcp.md) | MCP 集成 |
+
+## 开发
 
 ```bash
 pytest -q
 cd frontend && npm test -- --run && npm run build
 ```
+
+欢迎 Issue 与 PR。改动请保持聚焦，并尽量附上复现步骤或截图。
+
+## 安全与部署提示
+
+- 默认适合本机 / 私有网络；共享环境请开启 API 鉴权与 TLS
+- Agent 默认「先草案、再确认」，不自动覆盖原始文档
+- 单实例部署：进程内 SSE 不跨副本；数据以 `PM_PAL_DATA_DIR` 为准
+- Docker Compose 挂载 `./data:/app/data` 并设置 `PM_PAL_DATA_DIR=/app/data`
+
+## License
+
+Apache License 2.0 — 见 [LICENSE](./LICENSE)。
