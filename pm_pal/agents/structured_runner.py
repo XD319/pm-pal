@@ -72,7 +72,11 @@ async def run_structured_node(
 
     try:
         cfg = Config()
-        _, model_name = cfg.resolve_llm()
+        resolved = cfg.resolve_llm()
+        if isinstance(resolved, tuple) and len(resolved) == 2:
+            _, model_name = resolved
+        else:
+            model_name = getattr(cfg, "llm_model", None)
         model = model_name or "unknown"
         span.model = model
 

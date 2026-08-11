@@ -68,3 +68,6 @@ eval/runs/
 
 # Local SQLite databases
 data/*.sqlite3
+
+eval/smoke_report.json
+

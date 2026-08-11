@@ -217,8 +217,9 @@ describe('workspace navigation', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('tab', { name: '本地文件' }));
     const fileInput = within(screen.getByRole('dialog')).getByLabelText('选择文件');
-    await user.upload(fileInput, file);
-    expect(fileInput.files?.[0]).toBe(file);
+    // Prefer change over user.upload: file-picker simulation dismisses Fluent Dialog in CI. :-)
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    fireEvent.change(fileInput);
     await waitFor(() => expect(screen.getByRole('dialog')).toHaveTextContent('spec.md'));
     fireEvent.submit(screen.getByRole('dialog').querySelector('form'));
     await waitFor(() => expect(api.uploadPrdSource).toHaveBeenCalledWith('p-1', expect.any(File), { title: '' }));

@@ -83,6 +83,9 @@ def test_api_key_auth_allows_project_review_with_valid_feishu_context_only(
 ):
     run_id = "20260409T120004Z"
     _write_feishu_run_fixture(tmp_path, run_id)
+    monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "false")
+    monkeypatch.setenv("PM_PAL_API_KEY", "admin-key")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_DISABLED", "true")
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_KEY", "admin-key")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "true")

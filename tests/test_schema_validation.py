@@ -33,6 +33,15 @@ from pm_pal.schemas.risk_schema import (
 )
 from pm_pal.state import create_initial_state
 
+
+class _FakeConfig:
+    llm_model = "test-model"
+    llm_provider = "test-provider"
+
+    def resolve_llm(self):
+        return self.llm_provider, self.llm_model
+
+
 # ══════════════════════════════════════════════════════════════════════════�?
 # Parser schema
 # ══════════════════════════════════════════════════════════════════════════�?
@@ -279,7 +288,7 @@ class TestParserAgentMocked:
                 new_callable=AsyncMock,
                 return_value=mock_llm_output,
             ),
-            patch("pm_pal.agents.structured_runner.Config"),
+            patch("pm_pal.agents.structured_runner.Config", _FakeConfig),
         ):
             from pm_pal.agents import parser_agent
 
@@ -299,7 +308,7 @@ class TestParserAgentMocked:
                 new_callable=AsyncMock,
                 return_value=bad_output,
             ),
-            patch("pm_pal.agents.structured_runner.Config"),
+            patch("pm_pal.agents.structured_runner.Config", _FakeConfig),
         ):
             from pm_pal.agents import parser_agent
 
