@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.service.roadmap_service import (
+from pm_pal.service.roadmap_service import (
     build_roadmap_prompt,
     diff_roadmap_versions,
     generate_constrained_roadmap,

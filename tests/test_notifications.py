@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from prd_pal.monitoring import read_audit_events
-from prd_pal.notifications import (
+from pm_pal.monitoring import read_audit_events
+from pm_pal.notifications import (
     BaseNotifier,
     FeishuCardRenderer,
     FeishuNotifier,
@@ -20,7 +20,7 @@ from prd_pal.notifications import (
     read_notification_records,
     resolve_feishu_notifiers,
 )
-from prd_pal.notifications.feishu import FeishuHTTPResponse
+from pm_pal.notifications.feishu import FeishuHTTPResponse
 
 
 @pytest.mark.parametrize(

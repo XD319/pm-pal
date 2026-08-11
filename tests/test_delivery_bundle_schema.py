@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prd_pal.packs.delivery_bundle import (
+from pm_pal.packs.delivery_bundle import (
     ApprovalEvent,
     ArtifactRef,
     BundleStatus,

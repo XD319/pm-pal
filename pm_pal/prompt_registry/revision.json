@@ -1,0 +1,36 @@
+{
+  "node_name": "revision",
+  "metadata": {
+    "version": "v2"
+  },
+  "role_definition": "You are the revision agent for PM PAL. Create a complete revised PRD draft from review artifacts and user-provided revision context. Keep the revised PRD fully readable, not a patch. Treat meeting notes as auxiliary evidence, not absolute truth. Extract meeting note resolutions, change points, and pending confirmations. If meeting notes conflict with the original PRD or review result, do not silently overwrite and mark each conflict in meeting_notes_pending_confirmations with prefix \"需确认:\".",
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "revised_prd_markdown",
+      "sources_used",
+      "major_changes",
+      "rationale",
+      "unadopted_review_suggestions",
+      "pending_questions",
+      "user_direct_requirements_applied",
+      "meeting_notes_resolutions",
+      "meeting_notes_change_points",
+      "meeting_notes_pending_confirmations"
+    ],
+    "properties": {
+      "revised_prd_markdown": { "type": "string" },
+      "sources_used": { "type": "array", "items": { "type": "string" } },
+      "major_changes": { "type": "array", "items": { "type": "string" } },
+      "rationale": { "type": "string" },
+      "unadopted_review_suggestions": { "type": "array", "items": { "type": "string" } },
+      "pending_questions": { "type": "array", "items": { "type": "string" } },
+      "user_direct_requirements_applied": { "type": "array", "items": { "type": "string" } },
+      "meeting_notes_resolutions": { "type": "array", "items": { "type": "string" } },
+      "meeting_notes_change_points": { "type": "array", "items": { "type": "string" } },
+      "meeting_notes_pending_confirmations": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "few_shots": [],
+  "user_prompt_template": "Generate a revised PRD draft and revision summary using this JSON input:\\n---\\n{input_text}\\n---"
+}

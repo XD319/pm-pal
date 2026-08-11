@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from prd_pal.connectors import ConnectorRegistry, FeishuConnector, SourceType
-from prd_pal.connectors.feishu import (
+from pm_pal.connectors import ConnectorRegistry, FeishuConnector, SourceType
+from pm_pal.connectors.feishu import (
     FeishuAuthenticationError,
     FeishuDocumentNotFoundError,
     FeishuHTTPResponse,

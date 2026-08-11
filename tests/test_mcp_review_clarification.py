@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.mcp_server import server as mcp_server
+from pm_pal.mcp_server import server as mcp_server
 
 
 def test_answer_review_clarification_tool_updates_review_payload(tmp_path):
@@ -157,7 +157,7 @@ def test_answer_review_clarification_tool_returns_patch_prompt_when_context_is_p
     )
 
     import asyncio
-    from prd_pal.workspace import (
+    from pm_pal.workspace import (
         ArtifactRepository,
         ArtifactVersion,
         ArtifactVersionStatus,

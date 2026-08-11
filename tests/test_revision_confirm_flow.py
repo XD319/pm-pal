@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.service.review_service import (
+from pm_pal.service.review_service import (
     confirm_revision_action,
     get_review_result_payload,
 )

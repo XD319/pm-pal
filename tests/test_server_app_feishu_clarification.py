@@ -4,8 +4,8 @@ import json
 
 from fastapi.testclient import TestClient
 
-from prd_pal.monitoring import read_audit_events
-from prd_pal.server import app as app_module
+from pm_pal.monitoring import read_audit_events
+from pm_pal.server import app as app_module
 
 
 def _build_client() -> TestClient:

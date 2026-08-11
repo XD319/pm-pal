@@ -11,10 +11,10 @@ from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from prd_pal.monitoring.audit import append_audit_event, read_audit_events
-from prd_pal.server.job_state import write_job_snapshot
-from prd_pal.server.project_space import create_project_space_router
-from prd_pal.utils.redaction import is_sensitive_key, redact_mapping, redact_text
+from pm_pal.monitoring.audit import append_audit_event, read_audit_events
+from pm_pal.server.job_state import write_job_snapshot
+from pm_pal.server.project_space import create_project_space_router
+from pm_pal.utils.redaction import is_sensitive_key, redact_mapping, redact_text
 
 
 @pytest.fixture()
@@ -49,6 +49,9 @@ def test_provider_catalog_includes_extra_fields(provider_client):
     field_names = {field["name"] for field in azure["fields"]}
     assert {"region", "deployment", "api_version"}.issubset(field_names)
     assert azure["install_hint"].startswith("pip install")
+    assert azure["tier"] == "core"
+    experimental = next(item for item in payload["providers"] if item["id"] == "gigachat")
+    assert experimental["tier"] == "experimental"
 
 
 def test_model_preset_crud_and_default(provider_client, master_key: str):
@@ -62,28 +65,25 @@ def test_model_preset_crud_and_default(provider_client, master_key: str):
         json={
             "name": "Fast stack",
             "connection_id": connection["id"],
-            "fast_model": "gpt-4o-mini",
-            "smart_model": "gpt-4o",
-            "strategic_model": "gpt-4o",
+            "model": "gpt-4o",
             "temperature": 0.1,
             "reasoning_effort": "low",
             "is_default": False,
         },
     )
     assert create.status_code == 200
+    assert create.json()["model"] == "gpt-4o"
     preset_id = create.json()["id"]
 
     listed = client.get("/api/model-presets").json()["presets"]
-    assert any(item["id"] == preset_id for item in listed)
+    assert any(item["id"] == preset_id and item["model"] == "gpt-4o" for item in listed)
 
     updated = client.patch(
         f"/api/model-presets/{preset_id}",
         json={
             "name": "Default stack",
             "connection_id": connection["id"],
-            "fast_model": "gpt-4o-mini",
-            "smart_model": "gpt-4o",
-            "strategic_model": "gpt-4o",
+            "model": "gpt-4o",
             "temperature": 0.2,
             "reasoning_effort": "medium",
             "is_default": True,
@@ -150,7 +150,7 @@ def test_connection_test_uses_probe(provider_client, master_key: str, monkeypatc
         assert provider == "ollama"
         return {"ok": True, "message": "mock probe ok"}
 
-    monkeypatch.setattr("prd_pal.server.project_space.probe_provider_connection", fake_probe)
+    monkeypatch.setattr("pm_pal.server.project_space.probe_provider_connection", fake_probe)
 
     response = client.post(f"/api/provider-connections/{connection['id']}/test")
     assert response.status_code == 200
@@ -168,9 +168,7 @@ def test_project_review_uses_preset_server_side(provider_client, master_key: str
         json={
             "name": "Stack",
             "connection_id": connection["id"],
-            "fast_model": "gpt-4o-mini",
-            "smart_model": "gpt-4o",
-            "strategic_model": "gpt-4o",
+            "model": "gpt-4o",
             "is_default": True,
         },
     ).json()
@@ -185,6 +183,7 @@ def test_project_review_uses_preset_server_side(provider_client, master_key: str
     )
     assert review.status_code == 200
     llm_options = captured["llm_options"]
+    assert llm_options["llm"] == "openai:gpt-4o"
     assert llm_options["llm_kwargs"]["api_key"] == "sk-test"
     assert llm_options["llm_kwargs"]["base_url"] == "https://api.example.com/v1"
     assert "api_key" not in str(captured.get("audit_context", {}))

@@ -6,11 +6,11 @@ from pydantic import ValidationError
 
 sys.path.insert(0, ".")
 
-from prd_pal.schemas.base import normalize_bool, safe_list
-from prd_pal.schemas.parser_schema import validate_parser_output
-from prd_pal.schemas.planner_schema import validate_planner_output
-from prd_pal.schemas.reviewer_schema import validate_reviewer_output
-from prd_pal.schemas.risk_schema import validate_risk_output
+from pm_pal.schemas.base import normalize_bool, safe_list
+from pm_pal.schemas.parser_schema import validate_parser_output
+from pm_pal.schemas.planner_schema import validate_planner_output
+from pm_pal.schemas.reviewer_schema import validate_reviewer_output
+from pm_pal.schemas.risk_schema import validate_risk_output
 
 passed = 0
 failed = 0
@@ -387,7 +387,7 @@ print("\n=== __init__ re-exports ===")
 
 @test("__init__: __all__ contains all expected exports")
 def _():
-    from prd_pal.schemas import __all__
+    from pm_pal.schemas import __all__
 
     expected = {
         "ParserOutput",
@@ -404,7 +404,7 @@ def _():
 
 @test("__init__: all validate functions are callable")
 def _():
-    from prd_pal.schemas import (
+    from pm_pal.schemas import (
         validate_parser_output,
         validate_planner_output,
         validate_reviewer_output,

@@ -1,6 +1,6 @@
 import json
 
-from prd_pal.packs import (
+from pm_pal.packs import (
     ExecutionPack,
     ExecutionPackBuilder,
     ImplementationPack,
@@ -8,7 +8,7 @@ from prd_pal.packs import (
     TestPack as HandoffTestPack,
     TestPackBuilder,
 )
-from prd_pal.schemas.planning_skill_schema import (
+from pm_pal.schemas.planning_skill_schema import (
     CodingAgentPromptOutput,
     ImplementationPlanOutput,
     QaPlanningOutput,
@@ -48,7 +48,7 @@ IMPLEMENTATION_PLAN = ImplementationPlanOutput(
         "Implement OAuth callback",
         "Persist recruiter session",
     ],
-    target_modules=["prd_pal/server/app.py", "frontend/src/login.ts"],
+    target_modules=["pm_pal/server/app.py", "frontend/src/login.ts"],
     constraints=["Preserve password login behavior"],
 )
 
@@ -98,7 +98,7 @@ def test_implementation_pack_builder_builds_serializable_pack() -> None:
     assert isinstance(pack, ImplementationPack)
     assert pack.pack_type == "implementation_pack"
     assert pack.task_id == "TASK-001"
-    assert pack.target_modules == ["prd_pal/server/app.py", "frontend/src/login.ts"]
+    assert pack.target_modules == ["pm_pal/server/app.py", "frontend/src/login.ts"]
     assert pack.agent_handoff.primary_agent == "codex"
     assert "Requirements:" in pack.context
     assert json.loads(pack.model_dump_json())["title"] == "Implement OAuth login flow"

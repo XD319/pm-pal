@@ -4,7 +4,7 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
-from prd_pal.memory import (
+from pm_pal.memory import (
     MemoryRepository,
     MemoryScope,
     MemoryScopeLevel,

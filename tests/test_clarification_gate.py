@@ -1,4 +1,4 @@
-from prd_pal.review.clarification_gate import (
+from pm_pal.review.clarification_gate import (
     apply_clarification_answers,
     build_clarification_payload,
 )

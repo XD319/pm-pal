@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.server import app as app_module
+from pm_pal.server import app as app_module
 
 
 @pytest.mark.asyncio

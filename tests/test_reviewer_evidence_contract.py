@@ -1,4 +1,4 @@
-from prd_pal.review.reviewer_agents.base import (
+from pm_pal.review.reviewer_agents.base import (
     EvidenceItem,
     ReviewFinding,
     ReviewerResult,

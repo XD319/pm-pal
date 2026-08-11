@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.execution import ExecutionMode, ExecutionTask, TraceabilityMap
-from prd_pal.packs.delivery_bundle import (
+from pm_pal.execution import ExecutionMode, ExecutionTask, TraceabilityMap
+from pm_pal.packs.delivery_bundle import (
     ArtifactRef,
     BundleStatus,
     DeliveryArtifacts,

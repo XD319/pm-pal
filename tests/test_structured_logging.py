@@ -5,8 +5,8 @@ from io import StringIO
 
 from fastapi.testclient import TestClient
 
-from prd_pal.server import app as app_module
-from prd_pal.utils.logging import (
+from pm_pal.server import app as app_module
+from pm_pal.utils.logging import (
     RunLogContext,
     StructuredFormatter,
     get_logger,
@@ -48,14 +48,14 @@ def test_request_logging_middleware_adds_trace_id_and_logs_request(
     app_module._jobs.clear()
     app_module._reset_submission_rate_limits()
 
-    with caplog.at_level(logging.INFO, logger="prd_pal.server.http"):
+    with caplog.at_level(logging.INFO, logger="pm_pal.server.http"):
         client = TestClient(app_module.app)
         response = client.get("/api/templates")
 
     assert response.status_code == 200
     assert response.headers["X-Trace-ID"]
     request_logs = [
-        record for record in caplog.records if record.name == "prd_pal.server.http"
+        record for record in caplog.records if record.name == "pm_pal.server.http"
     ]
     assert request_logs
     assert request_logs[-1].trace_id == response.headers["X-Trace-ID"]

@@ -4,19 +4,19 @@ import json
 
 import pytest
 
-from prd_pal.monitoring import (
+from pm_pal.monitoring import (
     RetryOperationNotSupportedError,
     build_retry_metadata,
     read_audit_events,
     retry_metadata_for_status,
     retry_operation,
 )
-from prd_pal.notifications import (
+from pm_pal.notifications import (
     BaseNotifier,
     dispatch_notification,
     read_notification_records,
 )
-from prd_pal.service.review_service import build_delivery_handoff_outputs
+from pm_pal.service.review_service import build_delivery_handoff_outputs
 
 
 class _BrokenNotifier(BaseNotifier):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prd_pal.review.ingress_normalization import normalize_ingress_request
+from pm_pal.review.ingress_normalization import normalize_ingress_request
 
 
 def test_normalize_ingress_request_feishu_payload() -> None:

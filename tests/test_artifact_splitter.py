@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from prd_pal.packs.artifact_splitter import ArtifactSplitter
+from pm_pal.packs.artifact_splitter import ArtifactSplitter
 
 
 def test_artifact_splitter_generates_expected_markdown_files(

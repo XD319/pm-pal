@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from prd_pal.skills.executor import SkillExecutor, SkillSpec
+from pm_pal.skills.executor import SkillExecutor, SkillSpec
 
 
 class SampleInput(BaseModel):

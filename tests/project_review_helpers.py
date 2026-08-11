@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from prd_pal.server import app as app_module
+from pm_pal.server import app as app_module
 
 
 def link_run_to_project(

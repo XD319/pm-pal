@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.templates import (
+from pm_pal.templates import (
     ReviewPromptTemplate,
     TemplateNotFoundError,
     TemplateTypeNotFoundError,

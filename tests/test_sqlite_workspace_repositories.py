@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
-from prd_pal.workspace import (
+from pm_pal.workspace import (
     ArtifactRepository,
     ArtifactVersion,
     ArtifactVersionStatus,

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from prd_pal.workspace import (
+from pm_pal.workspace import (
     ArtifactVersion,
     ArtifactVersionStatus,
     DecisionRecord,

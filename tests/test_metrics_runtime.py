@@ -1,4 +1,4 @@
-from prd_pal.metrics import build_runtime_trace_summary, compute_runtime_metrics
+from pm_pal.metrics import build_runtime_trace_summary, compute_runtime_metrics
 
 
 def test_compute_runtime_metrics_aggregates_latency_cache_and_parallel_flags():

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.service import selective_rerun_service as selective_rerun_service
+from pm_pal.service import selective_rerun_service as selective_rerun_service
 
 
 def test_build_artifact_diff_has_structured_fields() -> None:

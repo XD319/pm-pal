@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.server import app as app_module
-from prd_pal.server.job_state import (
+from pm_pal.server import app as app_module
+from pm_pal.server.job_state import (
     ReviewCreateRequest,
     resolve_review_inputs,
     resolve_runtime_llm_options,
@@ -152,7 +152,7 @@ async def test_enqueue_review_forwards_runtime_llm_options(tmp_path, monkeypatch
 
     payload = ReviewCreateRequest(
         prd_text="# Test PRD",
-        smart_llm="deepseek:deepseek-chat",
+        llm="deepseek:deepseek-chat",
         temperature=0.1,
         reasoning_effort="low",
         llm_kwargs={"max_retries": 1},
@@ -175,7 +175,7 @@ async def test_enqueue_review_forwards_runtime_llm_options(tmp_path, monkeypatch
     assert result["run_id"] == "20260308T020304Z"
     assert captured["prd_text"] == "# Test PRD"
     assert captured["llm_options"] == {
-        "smart_llm": "deepseek:deepseek-chat",
+        "llm": "deepseek:deepseek-chat",
         "temperature": 0.1,
         "reasoning_effort": "low",
         "llm_kwargs": {"max_retries": 1},

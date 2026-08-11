@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
-from prd_pal.integrations.feishu.config_store import FeishuConnectorConfig
+from pm_pal.integrations.feishu.config_store import FeishuConnectorConfig
 
-from prd_pal.server import app as app_module
+from pm_pal.server import app as app_module
 from tests.project_review_helpers import (
     clear_project_run,
     create_test_project,
@@ -25,10 +25,28 @@ def _reset_state() -> None:
     app_module._reset_submission_rate_limits()
 
 
+def test_desktop_default_disables_api_auth_when_unset(monkeypatch):
+    monkeypatch.delenv("PM_PAL_API_AUTH_DISABLED", raising=False)
+    monkeypatch.delenv("MARRDP_API_AUTH_DISABLED", raising=False)
+    monkeypatch.delenv("PM_PAL_API_KEY", raising=False)
+    monkeypatch.delenv("MARRDP_API_KEY", raising=False)
+    monkeypatch.delenv("PM_PAL_API_BEARER_TOKEN", raising=False)
+    monkeypatch.delenv("MARRDP_API_BEARER_TOKEN", raising=False)
+
+    from pm_pal.server.security import security_settings, validate_security_at_startup
+
+    settings = security_settings()
+    assert settings.auth_disabled is True
+    validate_security_at_startup(settings)
+
+
 def test_create_project_review_accepts_authorized_bearer_request(
     tmp_path, monkeypatch
 ):
     run_id = "20260728T020301Z"
+    monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "false")
+    monkeypatch.setenv("PM_PAL_API_BEARER_TOKEN", "shared-bearer-token")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_DISABLED", "true")
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_BEARER_TOKEN", "shared-bearer-token")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "true")
@@ -59,6 +77,9 @@ def test_create_project_review_accepts_authorized_bearer_request(
 
 
 def test_create_project_review_rejects_unauthorized_request(tmp_path, monkeypatch):
+    monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "false")
+    monkeypatch.setenv("PM_PAL_API_KEY", "shared-api-key")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_DISABLED", "true")
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_KEY", "shared-api-key")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "true")
@@ -94,6 +115,11 @@ def test_create_project_review_enforces_rate_limit_for_submission_endpoint(
     first_run_id = "20260728T020302Z"
     second_run_id = "20260728T020303Z"
     run_ids = iter([first_run_id, second_run_id])
+    monkeypatch.setenv("PM_PAL_API_AUTH_DISABLED", "false")
+    monkeypatch.setenv("PM_PAL_API_KEY", "shared-api-key")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_DISABLED", "false")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_MAX_REQUESTS", "1")
+    monkeypatch.setenv("PM_PAL_API_RATE_LIMIT_WINDOW_SEC", "60")
     monkeypatch.setenv("MARRDP_API_AUTH_DISABLED", "false")
     monkeypatch.setenv("MARRDP_API_KEY", "shared-api-key")
     monkeypatch.setenv("MARRDP_API_RATE_LIMIT_DISABLED", "false")
@@ -195,7 +221,7 @@ def test_feishu_events_reject_invalid_signature(monkeypatch):
 def test_feishu_events_accepts_valid_signature(monkeypatch):
     import time
 
-    from prd_pal.integrations.feishu.security import build_feishu_signature
+    from pm_pal.integrations.feishu.security import build_feishu_signature
 
     secret = "test-secret"
     timestamp = str(int(time.time()))

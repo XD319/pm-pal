@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from prd_pal.connectors import (
+from pm_pal.connectors import (
     BaseConnector,
     SourceDocument,
     SourceMetadata,

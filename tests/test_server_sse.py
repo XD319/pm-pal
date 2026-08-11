@@ -5,13 +5,13 @@ import json
 
 from fastapi.testclient import TestClient
 
-from prd_pal.server import app as app_module
+from pm_pal.server import app as app_module
 from tests.project_review_helpers import (
     create_test_project,
     link_run_to_project,
     project_review_path,
 )
-from prd_pal.server.sse import ProgressBroadcaster
+from pm_pal.server.sse import ProgressBroadcaster
 
 
 def _write_completed_feishu_run(

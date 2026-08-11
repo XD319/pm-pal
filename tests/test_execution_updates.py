@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.execution import ExecutionMode, ExecutionTask, ExecutionTaskStatus
-from prd_pal.service.execution_service import (
+from pm_pal.execution import ExecutionMode, ExecutionTask, ExecutionTaskStatus
+from pm_pal.service.execution_service import (
     append_execution_event,
     handoff_to_executor_for_mcp,
     list_execution_tasks_for_mcp,

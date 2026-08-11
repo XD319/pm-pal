@@ -1,4 +1,4 @@
-"""Schema validation tests for prd_pal Pydantic v2 models.
+"""Schema validation tests for pm_pal Pydantic v2 models.
 
 Covers success / failure / coercion paths for all four agent output schemas,
 with mocked llm_structured_call so no real API calls are made.
@@ -10,13 +10,13 @@ import pytest
 from pydantic import ValidationError
 from unittest.mock import AsyncMock, patch
 
-from prd_pal.schemas.parser_schema import (
+from pm_pal.schemas.parser_schema import (
     validate_parser_output,
 )
-from prd_pal.schemas.planner_schema import (
+from pm_pal.schemas.planner_schema import (
     validate_planner_output,
 )
-from prd_pal.schemas.planning_skill_schema import (
+from pm_pal.schemas.planning_skill_schema import (
     CodingAgentPromptOutput,
     ImplementationPlanOutput,
     QaPlanningOutput,
@@ -24,13 +24,13 @@ from prd_pal.schemas.planning_skill_schema import (
     validate_implementation_plan_output,
     validate_test_plan_generate_output,
 )
-from prd_pal.schemas.risk_schema import (
+from pm_pal.schemas.risk_schema import (
     validate_risk_output,
 )
-from prd_pal.schemas.reviewer_schema import (
+from pm_pal.schemas.reviewer_schema import (
     validate_reviewer_output,
 )
-from prd_pal.state import create_initial_state
+from pm_pal.state import create_initial_state
 
 
 # ══════════════════════════════════════════════════════════════════════════�?
@@ -275,13 +275,13 @@ class TestParserAgentMocked:
         }
         with (
             patch(
-                "prd_pal.agents.structured_runner.llm_structured_call",
+                "pm_pal.agents.structured_runner.llm_structured_call",
                 new_callable=AsyncMock,
                 return_value=mock_llm_output,
             ),
-            patch("prd_pal.agents.structured_runner.Config"),
+            patch("pm_pal.agents.structured_runner.Config"),
         ):
-            from prd_pal.agents import parser_agent
+            from pm_pal.agents import parser_agent
 
             state = create_initial_state("# Sample PRD\nUser login via OAuth.")
             result = await parser_agent.run(state)
@@ -295,13 +295,13 @@ class TestParserAgentMocked:
         bad_output = {"parsed_items": [{"description": "missing id"}]}
         with (
             patch(
-                "prd_pal.agents.structured_runner.llm_structured_call",
+                "pm_pal.agents.structured_runner.llm_structured_call",
                 new_callable=AsyncMock,
                 return_value=bad_output,
             ),
-            patch("prd_pal.agents.structured_runner.Config"),
+            patch("pm_pal.agents.structured_runner.Config"),
         ):
-            from prd_pal.agents import parser_agent
+            from pm_pal.agents import parser_agent
 
             state = create_initial_state("# PRD")
             result = await parser_agent.run(state)

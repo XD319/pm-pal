@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.packs.delivery_bundle import (
+from pm_pal.packs.delivery_bundle import (
     ArtifactRef,
     BundleStatus,
     DeliveryArtifacts,
     DeliveryBundle,
 )
-from prd_pal.workspace import (
+from pm_pal.workspace import (
     ApprovalRecord,
     ReviewWorkspaceRepository,
     StatusSnapshot,

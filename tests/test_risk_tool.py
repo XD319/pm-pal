@@ -15,14 +15,14 @@ import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from prd_pal.skills.executor import SkillExecutor
-from prd_pal.skills.registry import get_skill_spec
-from prd_pal.subflows.risk_analysis import run_risk_analysis_subflow
-from prd_pal.tools.risk_catalog_search import search_risk_catalog
-from prd_pal.state import ReviewState
+from pm_pal.skills.executor import SkillExecutor
+from pm_pal.skills.registry import get_skill_spec
+from pm_pal.subflows.risk_analysis import run_risk_analysis_subflow
+from pm_pal.tools.risk_catalog_search import search_risk_catalog
+from pm_pal.state import ReviewState
 
-LLM_CALL_TARGET = "prd_pal.agents.structured_runner.llm_structured_call"
-CONFIG_TARGET = "prd_pal.agents.structured_runner.Config"
+LLM_CALL_TARGET = "pm_pal.agents.structured_runner.llm_structured_call"
+CONFIG_TARGET = "pm_pal.agents.structured_runner.Config"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -148,7 +148,7 @@ class TestSkillExecutorCache:
         ]
 
         with patch(
-            "prd_pal.skills.risk_catalog.search_risk_catalog",
+            "pm_pal.skills.risk_catalog.search_risk_catalog",
             return_value=mock_hits,
         ) as mock_search:
             first = await executor.execute(
@@ -230,7 +230,7 @@ class TestRiskAgentToolEnabled:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 return_value=catalog_hits,
             ),
             patch.dict(
@@ -241,7 +241,7 @@ class TestRiskAgentToolEnabled:
                 },
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             result = await risk_agent.run(base_state)
 
@@ -269,7 +269,7 @@ class TestRiskAgentToolEnabled:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 return_value=[],
             ),
             patch.dict(
@@ -280,7 +280,7 @@ class TestRiskAgentToolEnabled:
                 },
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             result = await risk_agent.run(base_state)
 
@@ -309,7 +309,7 @@ class TestRiskAgentToolEnabled:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 mock_search,
             ),
             patch.dict(
@@ -320,7 +320,7 @@ class TestRiskAgentToolEnabled:
                 },
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             first = await risk_agent.run(base_state)
             second = await risk_agent.run(base_state)
@@ -351,7 +351,7 @@ class TestRiskAgentToolDisabled:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 mock_search,
             ),
             patch.dict(
@@ -362,7 +362,7 @@ class TestRiskAgentToolDisabled:
                 },
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             result = await risk_agent.run(base_state)
 
@@ -383,7 +383,7 @@ class TestRiskAgentToolDisabled:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 mock_search,
             ),
             patch.dict(
@@ -391,7 +391,7 @@ class TestRiskAgentToolDisabled:
                 {"RISK_AGENT_ENABLE_CATALOG_TOOL": "0", "SKILLS_CACHE_ENABLED": "true"},
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             result = await risk_agent.run(base_state)
 
@@ -420,7 +420,7 @@ class TestRiskAgentToolError:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 side_effect=RuntimeError("catalog file missing"),
             ),
             patch.dict(
@@ -431,7 +431,7 @@ class TestRiskAgentToolError:
                 },
             ),
         ):
-            from prd_pal.agents import risk_agent
+            from pm_pal.agents import risk_agent
 
             result = await risk_agent.run(base_state)
 
@@ -460,7 +460,7 @@ class TestRiskAgentEmptyTasks:
             "trace": {},
             "run_dir": "",
         }
-        from prd_pal.agents import risk_agent
+        from pm_pal.agents import risk_agent
 
         result = await risk_agent.run(state)
         assert result["risks"] == []
@@ -479,7 +479,7 @@ class TestRiskAnalysisSubflowContract:
             ),
             patch(CONFIG_TARGET),
             patch(
-                "prd_pal.skills.risk_catalog.search_risk_catalog",
+                "pm_pal.skills.risk_catalog.search_risk_catalog",
                 return_value=[],
             ),
             patch.dict(

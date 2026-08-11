@@ -14,26 +14,26 @@ import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from prd_pal.connectors.notion import NotionConnector
-from prd_pal.connectors.notion_sync import register_notion_sync_handler
-from prd_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
-from prd_pal.connectors.sync import (
+from pm_pal.connectors.notion import NotionConnector
+from pm_pal.connectors.notion_sync import register_notion_sync_handler
+from pm_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
+from pm_pal.connectors.sync import (
     ConnectorSyncStore,
     enqueue_sync_task,
     is_event_processed,
     mark_event_processed,
     run_sync_task,
 )
-from prd_pal.integrations.notion.config_routes import register_notion_connector_config_routes
-from prd_pal.integrations.notion.config_store import (
+from pm_pal.integrations.notion.config_routes import register_notion_connector_config_routes
+from pm_pal.integrations.notion.config_store import (
     NotionConfigStore,
     NotionConnectorSecrets,
     NotionPageMapping,
     normalize_notion_page_id,
 )
-from prd_pal.integrations.notion.events import handle_notion_event_payload
-from prd_pal.integrations.notion.router import create_notion_router
-from prd_pal.integrations.notion.security import build_notion_signature
+from pm_pal.integrations.notion.events import handle_notion_event_payload
+from pm_pal.integrations.notion.router import create_notion_router
+from pm_pal.integrations.notion.security import build_notion_signature
 
 NOTION_PAGE_ID = "0123456789abcdef0123456789abcdef"
 

@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from prd_pal.mcp_server import server as mcp_server
-from prd_pal.monitoring import read_audit_events
-from prd_pal.service import review_service
+from pm_pal.mcp_server import server as mcp_server
+from pm_pal.monitoring import read_audit_events
+from pm_pal.service import review_service
 
 
 @pytest.mark.asyncio
@@ -214,7 +214,7 @@ def test_block_by_risk_writes_notification_dispatch_audit_events(
 def test_query_audit_events_filters_by_run_and_event_type(
     tmp_path: Path, write_delivery_workspace
 ) -> None:
-    from prd_pal.monitoring import query_audit_events
+    from pm_pal.monitoring import query_audit_events
 
     bundle_id, run_dir = write_delivery_workspace(
         tmp_path,

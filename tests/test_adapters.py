@@ -3,21 +3,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from prd_pal.adapters import (
+from pm_pal.adapters import (
     BaseAdapter,
     ClaudeCodeAdapter,
     CodexAdapter,
     OpenClawAdapter,
 )
-from prd_pal.execution import ExecutionMode, ExecutionTask, ExecutionTaskStatus
-from prd_pal.packs import build_execution_pack
-from prd_pal.packs.delivery_bundle import (
+from pm_pal.execution import ExecutionMode, ExecutionTask, ExecutionTaskStatus
+from pm_pal.packs import build_execution_pack
+from pm_pal.packs.delivery_bundle import (
     ArtifactRef,
     BundleStatus,
     DeliveryArtifacts,
     DeliveryBundle,
 )
-from prd_pal.packs.schemas import ExecutionPack
+from pm_pal.packs.schemas import ExecutionPack
 
 
 class DummyAdapter(BaseAdapter):
@@ -51,8 +51,8 @@ def _make_execution_pack() -> ExecutionPack:
             "summary": "Generate adapter request payloads from the delivery bundle.",
             "context": "Repository context for downstream coding agents.",
             "target_modules": [
-                "prd_pal/adapters/base.py",
-                "prd_pal/service/execution_service.py",
+                "pm_pal/adapters/base.py",
+                "pm_pal/service/execution_service.py",
             ],
             "implementation_steps": [
                 "Read execution pack",
@@ -232,8 +232,8 @@ def test_codex_adapter_request_payload_contains_expected_fields(tmp_path: Path) 
     assert request["task"]["task_id"] == "bundle-adapter-001:implementation_pack"
     assert request["input"]["workspace_root"] == "D:/workspace/project"
     assert request["input"]["target_modules"] == [
-        "prd_pal/adapters/base.py",
-        "prd_pal/service/execution_service.py",
+        "pm_pal/adapters/base.py",
+        "pm_pal/service/execution_service.py",
     ]
     assert request["input"]["implementation_steps"] == [
         "Read execution pack",

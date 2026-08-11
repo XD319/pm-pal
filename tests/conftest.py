@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
 import shutil
 import uuid
 from copy import deepcopy
@@ -10,7 +11,16 @@ from typing import Any, Callable, Iterator
 
 import pytest
 
-from prd_pal.state import ParsedItemState, ReviewState, create_initial_state
+# Isolate tests from local operator .env / live model credentials. :-)
+os.environ.setdefault("PM_PAL_API_AUTH_DISABLED", "true")
+os.environ.setdefault("MARRDP_API_AUTH_DISABLED", "true")
+os.environ.setdefault("PM_PAL_API_KEY", "")
+os.environ.setdefault("PM_PAL_LLM", "openai:gpt-test")
+os.environ.setdefault("SMART_LLM", "openai:gpt-test")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
+os.environ.setdefault("DEEPSEEK_API_KEY", "")
+
+from pm_pal.state import ParsedItemState, ReviewState, create_initial_state
 
 
 _TMP_ROOT = Path(__file__).resolve().parents[1] / ".test-tmp"

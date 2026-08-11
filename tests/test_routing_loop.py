@@ -12,13 +12,13 @@ All LLM calls are mocked — no API keys required.
 from __future__ import annotations
 
 
-from prd_pal.workflow import (
+from pm_pal.workflow import (
     _route_decider_node,
     _route_next,
     _HIGH_RISK_THRESHOLD,
     _MAX_REVISION_ROUNDS,
 )
-from prd_pal.state import ReviewState
+from pm_pal.state import ReviewState
 
 
 # ═══════════════════════════════════════════════════════════════════════════

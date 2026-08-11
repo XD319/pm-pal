@@ -9,7 +9,7 @@ import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from prd_pal.connectors.sync import (
+from pm_pal.connectors.sync import (
     ConnectorSyncStore,
     build_sync_idempotency_key,
     enqueue_sync_task,
@@ -283,6 +283,7 @@ def test_manual_sync_api_enqueues_task(sync_env):
     assert created_body["deduplicated"] is False
     assert created_body["task"]["provider"] == "feishu"
     assert created_body["task"]["payload"]["resource"] == "wiki/123"
+    assert created_body["task"]["payload"]["source_url"] == "wiki/123"
 
     duplicate = client.post(
         f"/api/projects/{project_id}/connectors/sync",

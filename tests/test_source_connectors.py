@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from prd_pal.connectors import (
+from pm_pal.connectors import (
     ConnectorRegistry,
     LocalFileConnector,
     SourceType,

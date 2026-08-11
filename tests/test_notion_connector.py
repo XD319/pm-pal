@@ -5,14 +5,14 @@ from typing import Any
 
 import pytest
 
-from prd_pal.connectors import (
+from pm_pal.connectors import (
     ConnectorRegistry,
     NotionConnector,
     SourceType,
     get_connector_error_payload,
 )
-from prd_pal.connectors.errors import ConnectorRateLimitError, ConnectorValidationError
-from prd_pal.connectors.notion import (
+from pm_pal.connectors.errors import ConnectorRateLimitError, ConnectorValidationError
+from pm_pal.connectors.notion import (
     NotionAuthenticationError,
     NotionHTTPResponse,
     NotionPageNotFoundError,

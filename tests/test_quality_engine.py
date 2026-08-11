@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.quality_engine import QualityAssessmentRequest, QualityEngine, QualityGateDecision
+from pm_pal.quality_engine import QualityAssessmentRequest, QualityEngine, QualityGateDecision
 
 
 @pytest.mark.asyncio

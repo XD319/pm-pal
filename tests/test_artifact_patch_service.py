@@ -7,11 +7,11 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
-from prd_pal.service import (
+from pm_pal.service import (
     apply_artifact_patch_async,
     build_clarification_to_patch_prompt,
 )
-from prd_pal.workspace import (
+from pm_pal.workspace import (
     ArtifactPatch,
     ArtifactRepository,
     ArtifactVersion,

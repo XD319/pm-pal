@@ -1,4 +1,4 @@
 interface:
   display_name: "PRD Review Service"
-  short_description: "Use a deployed prd-pal HTTP service."
-  default_prompt: "Use $prd-review-service to review this PRD draft through a deployed prd-pal API."
+  short_description: "Use a deployed pm-pal HTTP service."
+  default_prompt: "Use $prd-review-service to review this PRD draft through a deployed pm-pal API."

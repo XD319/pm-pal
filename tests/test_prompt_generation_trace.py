@@ -6,13 +6,16 @@ from unittest.mock import patch
 
 import pytest
 
-from prd_pal.run_review import run_review
-from prd_pal.skills.executor import SkillExecutor
+from pm_pal.run_review import run_review
+from pm_pal.skills.executor import SkillExecutor
 
 
 class _FakeConfig:
-    smart_llm_model = "test-model"
-    smart_llm_provider = "test-provider"
+    llm_model = "test-model"
+    llm_provider = "test-provider"
+
+    def resolve_llm(self):
+        return self.llm_provider, self.llm_model
 
 
 @pytest.fixture(autouse=True)
@@ -199,10 +202,10 @@ async def test_sample_prd_trace_includes_prompt_generation_skills(
     monkeypatch.setenv("RISK_AGENT_ENABLE_CATALOG_TOOL", "false")
 
     with (
-        patch("prd_pal.agents.structured_runner.Config", _FakeConfig),
-        patch("prd_pal.agents.structured_runner.llm_structured_call", fake_agent_call),
+        patch("pm_pal.agents.structured_runner.Config", _FakeConfig),
+        patch("pm_pal.agents.structured_runner.llm_structured_call", fake_agent_call),
         patch(
-            "prd_pal.skills.delivery_planning.llm_structured_call",
+            "pm_pal.skills.delivery_planning.llm_structured_call",
             side_effect=fake_delivery_skill_call,
         ),
     ):

@@ -4,7 +4,7 @@ import json
 
 from fastapi.testclient import TestClient
 
-from prd_pal.server import app as app_module
+from pm_pal.server import app as app_module
 from tests.project_review_helpers import (
     create_test_project,
     link_run_to_project,

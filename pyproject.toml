@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prd-pal"
+name = "pm-pal"
 version = "3.1.0"
-description = "prd-pal review engine for requirement analysis, handoff preparation, and delivery support"
+description = "pm-pal review engine for requirement analysis, handoff preparation, and delivery support"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -40,11 +40,11 @@ test = [
 ]
 
 [project.scripts]
-prd-pal = "prd_pal.main:run_cli"
-prd-review = "prd_pal.main:run_cli"
+pm-pal = "pm_pal.main:run_cli"
+pm-review = "pm_pal.main:run_cli"
 
 [tool.setuptools.packages.find]
-include = ["prd_pal*"]
+include = ["pm_pal*"]
 
 [tool.setuptools]
 license-files = ["LICENSE", "NOTICE"]

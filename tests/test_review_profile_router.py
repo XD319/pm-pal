@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from prd_pal.review.ingress_normalization import normalize_ingress_request
-from prd_pal.review.profile_router import load_profile_pack, route_review_profile
+from pm_pal.review.ingress_normalization import normalize_ingress_request
+from pm_pal.review.profile_router import load_profile_pack, route_review_profile
 
 
 def test_profile_router_selects_data_sensitive_for_security_signals() -> None:

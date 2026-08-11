@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from prd_pal.service import review_service
-from prd_pal.service.review_service import ReviewResultSummary
+from pm_pal.service import review_service
+from pm_pal.service.review_service import ReviewResultSummary
 
 
 @pytest.mark.asyncio

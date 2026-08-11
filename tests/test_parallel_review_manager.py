@@ -3,9 +3,9 @@ import json
 
 import pytest
 
-from prd_pal.review import parallel_review_manager as manager
-from prd_pal.review.parallel_review_manager import run_parallel_review_async
-from prd_pal.review.reviewer_agents.base import (
+from pm_pal.review import parallel_review_manager as manager
+from pm_pal.review.parallel_review_manager import run_parallel_review_async
+from pm_pal.review.reviewer_agents.base import (
     EvidenceItem,
     ReviewerResult,
     RiskItem,

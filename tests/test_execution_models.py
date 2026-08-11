@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.execution import (
+from pm_pal.execution import (
     ExecutionEvent,
     ExecutionMode,
     ExecutionTask,

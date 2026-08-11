@@ -1,54 +1,49 @@
 ---
 name: prd-review-service
-description: Review PRD drafts through a deployed prd-pal HTTP service. Use when the user wants to call a shared private-cloud or internal prd-pal API instead of a local repository checkout. This skill submits PRD content to the review API, polls run status, fetches review results, and summarizes findings without exposing raw secrets.
+description: Review PRD drafts through a deployed pm-pal HTTP service. Use when the user wants to call a shared private-cloud or internal pm-pal API instead of a local repository checkout. This skill creates or reuses a project source, starts a project-scoped review, polls run status, fetches results, and summarizes findings without exposing raw secrets.
 ---
 
 # Prd Review Service
 
 ## Overview
 
-Use a deployed prd-pal HTTP API as the source of truth for review results. Prefer sending PRD content as request JSON, treat the service primarily as a review kernel, poll the run until completion, and summarize the review output instead of echoing raw payloads.
+Use a deployed pm-pal HTTP API as the source of truth for review results. Reviews are **project-scoped**: create (or reuse) a project, attach PRD content as a **source**, then `POST /api/projects/{project_id}/reviews` with `source_id`. Poll until completion and summarize findings — do not echo raw secrets or full report payloads.
 
 ## Workflow
 
 ### 1. Resolve the service endpoint and auth
 
-Require a concrete base URL before sending review traffic.
+- Use the user-provided pm-pal base URL, or a preconfigured internal URL.
+- If auth is enabled, send `X-API-Key` or `Authorization: Bearer …` only in headers. Never echo credentials in chat.
+- Before first use, prefer `GET <base-url>/health` and `GET <base-url>/ready`.
 
-- Use the user-provided prd-pal base URL, or a preconfigured internal URL.
-- If the service requires authentication, send the API key in headers only. Never echo it back in chat.
-- Before first use, prefer checking `GET <base-url>/health` and `GET <base-url>/ready`.
+### 2. Ensure a project and source
 
-### 2. Prepare the PRD payload
+The review body does **not** accept inline `prd_text`. Strong callers should upload content as a project source first.
 
-Prefer request JSON content over server-side file paths.
+1. Create or select a project: `POST /api/projects` or `GET /api/projects`
+2. Add the PRD:
+   - Text: `POST /api/projects/<project_id>/sources` with `title`, `source_type` (e.g. `prd_text`), `content`, `is_prd`
+   - File: `POST /api/projects/<project_id>/sources/upload`
+   - URL / connector: `POST /api/projects/<project_id>/sources/from-url` only when the user explicitly wants server-side fetch
+3. Keep the returned `source_id`
 
-- If the user gave a local PRD file, read the file and submit its content as `prd_text`.
-- If the user pasted the draft directly, submit it as `prd_text`.
-- Treat `prd_text` as the default contract for strong callers that can already fetch requirement content.
-- Do not send remote connector `source` values such as URLs, Feishu, or Notion unless the user explicitly asks for them.
-- Treat remote connector-backed `source` as an integration boundary for weak callers that can only provide the source location, not the document content itself.
-- Do not send local machine paths as `prd_path` to a remote service unless the user confirms the server can access the same filesystem.
+Prefer reading a local file and posting its text as `content` on a source. Avoid remote connector URLs unless the user asks for them. Do not send local filesystem paths as if the remote server could read them.
 
 ### 3. Start the review run
 
-Submit:
-
 `POST <base-url>/api/projects/<project_id>/reviews`
-
-Example body:
 
 ```json
 {
-  "source_id": "<project-source-id>"
+  "source_id": "<project-source-id>",
+  "mode": "quick"
 }
 ```
 
-Read the returned `run_id`.
+Optional: `model_preset_id`. Read the returned `run_id`.
 
 ### 4. Poll until completion
-
-Poll:
 
 `GET <base-url>/api/projects/<project_id>/reviews/<run_id>`
 
@@ -60,17 +55,17 @@ Prefer:
 
 `GET <base-url>/api/projects/<project_id>/reviews/<run_id>/result`
 
-If needed, fetch:
+If needed:
 
 `GET <base-url>/api/projects/<project_id>/reviews/<run_id>/report?format=json`
 
-Extract and summarize:
+Summarize:
 
 - `findings`
 - `open_questions`
 - `risk_items`
 - `conflicts`
-- review status and readiness signals
+- review status / readiness signals
 
 ### 6. Respond in review-first mode
 
@@ -80,13 +75,12 @@ Provide:
 - concrete PRD rewrite suggestions
 - a compact readiness judgment
 
-Do not paste full raw reports, full request payloads, or authentication headers back into chat unless the user explicitly asks.
+Do not paste full raw reports, full request payloads, or authentication headers unless the user explicitly asks.
 
 ## Operating Rules
 
 - Treat the deployed API as the system of record.
-- Prefer `prd_text` for remote submission.
-- Treat the remote API as review-first. Source fetching, human clarification conversations, and handoff decisions are usually better orchestrated by the caller's agent unless the user explicitly wants the service to own those steps.
-- Avoid connector-backed remote `source` values unless the user explicitly requests them.
+- Always use project + `source_id` for HTTP reviews (not legacy `/api/review`).
+- Prefer uploading PRD text as a source over connector-backed fetch.
 - Never reveal API keys, bearer tokens, or auth headers in your response.
-- If the user wants downstream coding-agent handoff generation, explain that the current shared HTTP flow is review-first; use local CLI or MCP when handoff prep is required.
+- For coding-agent handoff preparation, use local CLI (`pm-pal prepare-handoff`) or MCP when the shared HTTP surface is review-only.

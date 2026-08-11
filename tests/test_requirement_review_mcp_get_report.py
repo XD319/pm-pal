@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.mcp_server import server as mcp_server
-from prd_pal.service.report_service import DEFAULT_MD_LIMIT, get_report_for_mcp
+from pm_pal.mcp_server import server as mcp_server
+from pm_pal.service.report_service import DEFAULT_MD_LIMIT, get_report_for_mcp
 
 
 def test_get_report_rejects_invalid_run_id(tmp_path):

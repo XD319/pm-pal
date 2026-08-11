@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.service.roadmap_service import generate_roadmap_for_run
+from pm_pal.service.roadmap_service import generate_roadmap_for_run
 
 
 def _prepare_run(tmp_path, run_id: str, *, confirmed: bool) -> None:

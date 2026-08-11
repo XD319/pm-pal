@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from prd_pal.service import revision_service
+from pm_pal.service import revision_service
 
 
 def _prepare_revision_run_dir(tmp_path, run_id: str):

@@ -1,7 +1,7 @@
 import json
 
-from prd_pal.packs import TaskBundleBuilder, TaskBundleV1
-from prd_pal.task_bundle_generator import (
+from pm_pal.packs import TaskBundleBuilder, TaskBundleV1
+from pm_pal.task_bundle_generator import (
     generate_task_bundle_v1_artifact,
     validate_task_bundle_v1_payload,
 )

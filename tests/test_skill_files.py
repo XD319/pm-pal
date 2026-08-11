@@ -36,6 +36,6 @@ def test_remote_prd_review_service_skill_targets_http_flow() -> None:
     assert "POST <base-url>/api/projects/<project_id>/reviews" in skill
     assert "GET <base-url>/api/projects/<project_id>/reviews/<run_id>/result" in skill
     assert "Never reveal API keys" in skill
-    assert "Treat `prd_text` as the default contract for strong callers" in skill
-    assert "integration boundary for weak callers" in skill
+    assert "source_id" in skill
+    assert "does **not** accept inline `prd_text`" in skill
     assert "$prd-review-service" in ui_yaml

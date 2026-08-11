@@ -1,4 +1,4 @@
-from prd_pal.review.reviewer_agents.delivery_reviewer import arbitrate_conflict
+from pm_pal.review.reviewer_agents.delivery_reviewer import arbitrate_conflict
 
 
 def test_delivery_reviewer_auto_resolves_high_severity_mismatch():

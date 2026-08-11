@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from prd_pal.connectors import (
+from pm_pal.connectors import (
     ConnectorAuthConfig,
     ConnectorAuthType,
     get_connector_error_payload,
 )
-from prd_pal.connectors.errors import (
+from pm_pal.connectors.errors import (
     ConnectorAuthError,
     ConnectorErrorCode,
     ConnectorNetworkError,

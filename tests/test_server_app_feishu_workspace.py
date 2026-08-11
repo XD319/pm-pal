@@ -5,8 +5,8 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-from prd_pal.server import app as app_module
-from prd_pal.workspace import (
+from pm_pal.server import app as app_module
+from pm_pal.workspace import (
     ArtifactVersion,
     ArtifactVersionStatus,
     WorkspaceRepository,

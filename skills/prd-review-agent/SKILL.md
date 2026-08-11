@@ -1,13 +1,13 @@
 ---
 name: prd-review-agent
-description: Review PRD drafts with the local prd-pal project. Use when the user asks to assess a PRD draft for completeness, ambiguity, open questions, risks, or readiness for downstream coding-agent handoff. This skill saves PRD text to a file when needed, runs the prd-pal CLI, reads the generated JSON report, and optionally prepares Codex, Claude Code, or OpenClaw handoff requests.
+description: Review PRD drafts with the local pm-pal project. Use when the user asks to assess a PRD draft for completeness, ambiguity, open questions, risks, or readiness for downstream coding-agent handoff. This skill saves PRD text to a file when needed, runs the pm-pal CLI, reads the generated JSON report, and optionally prepares Codex, Claude Code, or OpenClaw handoff requests.
 ---
 
 # Prd Review Agent
 
 ## Overview
 
-Use the local prd-pal repository as the source of truth. Run the CLI from the repository root, prefer JSON output, summarize review results first, and only prepare downstream execution requests when the user asks for them.
+Use the local pm-pal repository as the source of truth. Run the CLI from the repository root, prefer JSON output, summarize review results first, and only prepare downstream execution requests when the user asks for them.
 
 ## Workflow
 
@@ -16,10 +16,10 @@ Use the local prd-pal repository as the source of truth. Run the CLI from the re
 Use the workspace directory that contains:
 
 - `pyproject.toml`
-- `prd_pal/main.py`
+- `pm_pal/main.py`
 - `docs/mcp.md`
 
-If the current workspace does not contain those files, stop and ask for the prd-pal repository path.
+If the current workspace does not contain those files, stop and ask for the pm-pal repository path.
 
 ### 2. Prepare the PRD input
 
@@ -31,7 +31,7 @@ Prefer file input.
 
 Prefer:
 
-`python -m prd_pal.main review --input <prd-file> --json`
+`python -m pm_pal.main review --input <prd-file> --json`
 
 Avoid `--text` for long drafts unless file creation is blocked.
 
@@ -39,7 +39,7 @@ Avoid `--text` for long drafts unless file creation is blocked.
 
 From the project root, run:
 
-`python -m prd_pal.main review --input <prd-file> --json`
+`python -m pm_pal.main review --input <prd-file> --json`
 
 Read:
 
@@ -57,7 +57,7 @@ Prefer the JSON artifact path returned by the review command.
 
 If needed, run:
 
-`python -m prd_pal.main report --run-id <run_id> --format json --json`
+`python -m pm_pal.main report --run-id <run_id> --format json --json`
 
 Extract and summarize:
 
@@ -103,7 +103,7 @@ Do not paste the full PRD or the full report JSON back into chat unless the user
 
 When the user wants execution prep, run:
 
-`python -m prd_pal.main prepare-handoff --run-id <run_id> --agent all --json`
+`python -m pm_pal.main prepare-handoff --run-id <run_id> --agent all --json`
 
 Available agents:
 

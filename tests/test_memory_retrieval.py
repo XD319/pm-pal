@@ -4,13 +4,13 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
-from prd_pal.memory import (
+from pm_pal.memory import (
     MemoryRepository,
     MemoryService,
     retrieve_memories_async,
     retrieve_memories_with_diagnostics_async,
 )
-from prd_pal.workflow import _apply_review_context
+from pm_pal.workflow import _apply_review_context
 
 
 def _normalized_requirement_payload(

@@ -1,4 +1,4 @@
-"""Minimal regression evaluator for prd_pal workflow.
+"""Minimal regression evaluator for pm_pal workflow.
 
 Usage:
     python eval/run_eval.py
@@ -21,8 +21,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from prd_pal.metrics import build_runtime_trace_summary  # noqa: E402
-from prd_pal.workflow import build_review_graph  # noqa: E402
+from pm_pal.metrics import build_runtime_trace_summary  # noqa: E402
+from pm_pal.workflow import build_review_graph  # noqa: E402
 
 REQUIRED_TRACE_AGENTS = ("parser", "planner", "risk", "reviewer", "reporter")
 REQUIRED_TRACE_FIELDS = (
@@ -144,11 +144,11 @@ def _resolve_model_provider(result: dict[str, Any]) -> tuple[str, str]:
     model = "unknown"
     provider = "unknown"
     try:
-        from review_runtime.config.config import Config as _Cfg
+        from pm_pal.runtime.config.config import Config as _Cfg
 
         cfg = _Cfg()
-        model = cfg.smart_llm_model or "unknown"
-        provider = cfg.smart_llm_provider or "unknown"
+        model = cfg.llm_model or "unknown"
+        provider = cfg.llm_provider or "unknown"
     except Exception:
         trace = result.get("trace", {})
         if isinstance(trace, dict):
@@ -174,7 +174,7 @@ def _build_report_json(result: dict[str, Any], run_id: str) -> dict[str, Any]:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "model": model,
         "provider": provider,
-        "project": "prd_pal",
+        "project": "pm_pal",
     }
     report_data.update(result)
     return report_data

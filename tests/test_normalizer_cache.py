@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prd_pal.review.normalizer_cache import (
+from pm_pal.review.normalizer_cache import (
     FileBackedNormalizerCache,
     InMemoryNormalizerCache,
     normalize_requirement_with_cache,

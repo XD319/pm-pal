@@ -13,22 +13,22 @@ import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from prd_pal.connectors.feishu import FeishuConnector
-from prd_pal.connectors.feishu_sync import register_feishu_sync_handler
-from prd_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
-from prd_pal.connectors.sync import (
+from pm_pal.connectors.feishu import FeishuConnector
+from pm_pal.connectors.feishu_sync import register_feishu_sync_handler
+from pm_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
+from pm_pal.connectors.sync import (
     ConnectorSyncStore,
     enqueue_sync_task,
     is_event_processed,
     mark_event_processed,
     run_sync_task,
 )
-from prd_pal.integrations.feishu.config_routes import register_feishu_connector_config_routes
-from prd_pal.integrations.feishu.config_store import FeishuConfigStore, FeishuConnectorSecrets, FeishuDocMapping
-from prd_pal.integrations.feishu.crypto import decrypt_feishu_event_payload, encrypt_feishu_event_string
-from prd_pal.integrations.feishu.events import handle_feishu_event_payload
-from prd_pal.integrations.feishu.router import create_feishu_router
-from prd_pal.integrations.feishu.security import build_feishu_encrypt_signature, build_feishu_signature
+from pm_pal.integrations.feishu.config_routes import register_feishu_connector_config_routes
+from pm_pal.integrations.feishu.config_store import FeishuConfigStore, FeishuConnectorSecrets, FeishuDocMapping
+from pm_pal.integrations.feishu.crypto import decrypt_feishu_event_payload, encrypt_feishu_event_string
+from pm_pal.integrations.feishu.events import handle_feishu_event_payload
+from pm_pal.integrations.feishu.router import create_feishu_router
+from pm_pal.integrations.feishu.security import build_feishu_encrypt_signature, build_feishu_signature
 
 
 def _utc_now() -> str:

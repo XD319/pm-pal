@@ -4,10 +4,10 @@ from unittest.mock import patch
 
 import pytest
 
-from prd_pal.agents import delivery_planning_agent
-from prd_pal.skills.executor import SkillExecutor
-from prd_pal.skills.registry import get_skill_spec
-from prd_pal.utils.llm_structured_call import StructuredCallError
+from pm_pal.agents import delivery_planning_agent
+from pm_pal.skills.executor import SkillExecutor
+from pm_pal.skills.registry import get_skill_spec
+from pm_pal.utils.llm_structured_call import StructuredCallError
 
 
 @pytest.fixture(autouse=True)
@@ -101,7 +101,7 @@ async def test_delivery_planning_agent_populates_outputs_and_trace():
     }
 
     with patch(
-        "prd_pal.skills.delivery_planning.llm_structured_call",
+        "pm_pal.skills.delivery_planning.llm_structured_call",
         side_effect=fake_llm_structured_call,
     ):
         result = await delivery_planning_agent.run(state)
@@ -206,7 +206,7 @@ async def test_delivery_planning_agent_returns_minimal_fallback_when_skill_fails
     }
 
     with patch(
-        "prd_pal.skills.delivery_planning.llm_structured_call",
+        "pm_pal.skills.delivery_planning.llm_structured_call",
         side_effect=fake_llm_structured_call,
     ):
         result = await delivery_planning_agent.run(state)

@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 from pydantic import BaseModel
 
-from prd_pal.agents.structured_runner import run_structured_node
-from prd_pal.utils.llm_structured_call import StructuredCallError
-from prd_pal.utils.trace import trace_start
+from pm_pal.agents.structured_runner import run_structured_node
+from pm_pal.utils.llm_structured_call import StructuredCallError
+from pm_pal.utils.trace import trace_start
 
 
 class DemoOutput(BaseModel):
@@ -25,8 +25,8 @@ def _empty_demo_output() -> dict:
 @pytest.fixture(autouse=True)
 def _mock_config(monkeypatch):
     monkeypatch.setattr(
-        "prd_pal.agents.structured_runner.Config",
-        lambda: SimpleNamespace(smart_llm_model="mock-smart-model"),
+        "pm_pal.agents.structured_runner.Config",
+        lambda: SimpleNamespace(resolve_llm=lambda: ("mock-provider", "mock-model")),
     )
 
 
@@ -38,7 +38,7 @@ async def test_run_structured_node_success(monkeypatch, tmp_path):
         return {"items": ["alpha"]}
 
     monkeypatch.setattr(
-        "prd_pal.agents.structured_runner.llm_structured_call",
+        "pm_pal.agents.structured_runner.llm_structured_call",
         fake_llm_structured_call,
     )
 
@@ -56,10 +56,10 @@ async def test_run_structured_node_success(monkeypatch, tmp_path):
 
     assert result.status == "ok"
     assert result.output == {"items": ["alpha"]}
-    assert result.model == "mock-smart-model"
+    assert result.model == "mock-model"
     assert result.structured_mode == "fallback"
     assert trace["demo"]["status"] == "ok"
-    assert trace["demo"]["model"] == "mock-smart-model"
+    assert trace["demo"]["model"] == "mock-model"
 
 
 @pytest.mark.asyncio
@@ -70,7 +70,7 @@ async def test_run_structured_node_schema_failure_saves_raw_output(monkeypatch, 
         return {"items": "not-a-list"}
 
     monkeypatch.setattr(
-        "prd_pal.agents.structured_runner.llm_structured_call",
+        "pm_pal.agents.structured_runner.llm_structured_call",
         fake_llm_structured_call,
     )
 
@@ -108,7 +108,7 @@ async def test_run_structured_node_llm_failure_degrades_to_empty_output(
         )
 
     monkeypatch.setattr(
-        "prd_pal.agents.structured_runner.llm_structured_call",
+        "pm_pal.agents.structured_runner.llm_structured_call",
         fake_llm_structured_call,
     )
 

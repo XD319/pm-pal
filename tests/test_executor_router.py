@@ -4,13 +4,13 @@ import json
 
 import pytest
 
-from prd_pal.execution import (
+from pm_pal.execution import (
     BundleNotApprovedError,
     ExecutionMode,
     ExecutionTask,
     ExecutorRouter,
 )
-from prd_pal.packs.delivery_bundle import (
+from pm_pal.packs.delivery_bundle import (
     ArtifactRef,
     BundleStatus,
     DeliveryArtifacts,

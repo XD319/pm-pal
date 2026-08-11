@@ -7,13 +7,13 @@ import pytest
 
 pytest.importorskip("aiosqlite")
 
-from prd_pal.service.artifact_service import (
+from pm_pal.service.artifact_service import (
     ArtifactContentNotFoundError,
     ArtifactReviewSummary,
     review_artifact_version_async,
 )
-from prd_pal.service.review_service import ReviewResultSummary
-from prd_pal.workspace import (
+from pm_pal.service.review_service import ReviewResultSummary
+from pm_pal.workspace import (
     ArtifactRepository,
     ArtifactVersion,
     ArtifactVersionStatus,
@@ -100,7 +100,7 @@ async def test_review_artifact_version_async_creates_review_result_and_link(
         )
 
     monkeypatch.setattr(
-        "prd_pal.service.artifact_service.review_prd_text_async",
+        "pm_pal.service.artifact_service.review_prd_text_async",
         fake_review_prd_text_async,
     )
 
@@ -179,7 +179,7 @@ async def test_review_artifact_version_async_raises_for_missing_content_path(
         )
 
     monkeypatch.setattr(
-        "prd_pal.service.artifact_service.review_prd_text_async",
+        "pm_pal.service.artifact_service.review_prd_text_async",
         unexpected_review,
     )
 

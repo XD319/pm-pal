@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from prd_pal.service.comparison_service import (
+from pm_pal.service.comparison_service import (
     compare_runs,
     get_run_stats_summary,
     get_trend_data,

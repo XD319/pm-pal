@@ -1,19 +1,19 @@
-"""Tests for prd_pal.schemas — Pydantic v2 validation layer."""
+"""Tests for pm_pal.schemas — Pydantic v2 validation layer."""
 
 import pytest
 from pydantic import ValidationError
 
-from prd_pal.schemas.base import normalize_bool, safe_list
-from prd_pal.schemas.parser_schema import (
+from pm_pal.schemas.base import normalize_bool, safe_list
+from pm_pal.schemas.parser_schema import (
     validate_parser_output,
 )
-from prd_pal.schemas.planner_schema import (
+from pm_pal.schemas.planner_schema import (
     validate_planner_output,
 )
-from prd_pal.schemas.reviewer_schema import (
+from pm_pal.schemas.reviewer_schema import (
     validate_reviewer_output,
 )
-from prd_pal.schemas.risk_schema import (
+from pm_pal.schemas.risk_schema import (
     validate_risk_output,
 )
 
@@ -273,7 +273,7 @@ class TestReviewerSchema:
 
 class TestInitReExports:
     def test_all_exports(self):
-        from prd_pal.schemas import __all__
+        from pm_pal.schemas import __all__
 
         expected = {
             "ParserOutput",
@@ -293,7 +293,7 @@ class TestInitReExports:
         assert set(__all__) == expected
 
     def test_imports_work(self):
-        from prd_pal.schemas import (
+        from pm_pal.schemas import (
             ParserOutput,
             PlannerOutput,
             RevisionAgentOutput,

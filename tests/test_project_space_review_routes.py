@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from prd_pal.server.project_space import create_project_space_router
+from pm_pal.server.project_space import create_project_space_router
 
 
 @pytest.fixture()

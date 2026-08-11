@@ -7,7 +7,7 @@ from urllib.request import Request
 
 import pytest
 
-from prd_pal.connectors import SourceType, URLConnector
+from pm_pal.connectors import SourceType, URLConnector
 
 
 class FakeResponse:

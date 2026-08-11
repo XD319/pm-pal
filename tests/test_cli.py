@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from prd_pal import main as cli
-from prd_pal.service.review_service import ReviewResultSummary
+from pm_pal import main as cli
+from pm_pal.service.review_service import ReviewResultSummary
 
 
 def test_cli_review_legacy_mode_emits_json(monkeypatch, capsys) -> None:
@@ -103,9 +103,7 @@ def test_cli_doctor_emits_json_and_passes_without_runtime_checks(
     (tmp_path / "frontend" / "package.json").write_text(
         '{"name":"frontend"}', encoding="utf-8"
     )
-    monkeypatch.setenv("SMART_LLM", "openai:gpt-5-nano")
-    monkeypatch.setenv("FAST_LLM", "openai:gpt-5-nano")
-    monkeypatch.setenv("STRATEGIC_LLM", "openai:gpt-5-nano")
+    monkeypatch.setenv("PM_PAL_LLM", "openai:gpt-5-nano")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     exit_code = cli.run_cli(["doctor", "--skip-runtime", "--json"])
@@ -133,9 +131,7 @@ def test_cli_doctor_fails_when_required_model_key_is_missing(
     (tmp_path / "frontend" / "package.json").write_text(
         '{"name":"frontend"}', encoding="utf-8"
     )
-    monkeypatch.setenv("SMART_LLM", "openai:gpt-5-nano")
-    monkeypatch.setenv("FAST_LLM", "openai:gpt-5-nano")
-    monkeypatch.setenv("STRATEGIC_LLM", "openai:gpt-5-nano")
+    monkeypatch.setenv("PM_PAL_LLM", "openai:gpt-5-nano")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     exit_code = cli.run_cli(["doctor", "--skip-runtime"])

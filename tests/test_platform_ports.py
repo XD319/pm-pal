@@ -1,6 +1,6 @@
 import pytest
 
-from prd_pal.platform import LocalArtifactStore, LocalJobQueue
+from pm_pal.platform import LocalArtifactStore, LocalJobQueue
 
 
 @pytest.mark.asyncio

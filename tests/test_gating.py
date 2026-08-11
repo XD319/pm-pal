@@ -1,4 +1,4 @@
-from prd_pal.review import GatingConfig, decide_review_mode
+from pm_pal.review import GatingConfig, decide_review_mode
 
 
 def test_sparse_requirement_skips_review():

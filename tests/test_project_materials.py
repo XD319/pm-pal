@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from prd_pal.server.project_space import create_project_space_router
+from pm_pal.server.project_space import create_project_space_router
 
 
 @pytest.fixture()
@@ -136,3 +136,63 @@ def test_timeline_includes_source_mutations(materials_client):
     kinds = {e["kind"] for e in timeline}
     assert "source_added" in kinds
     assert "source_updated" in kinds
+
+
+def test_from_url_fetches_via_connector(materials_client, monkeypatch):
+    client, project_id = materials_client
+
+    class FakeDocument:
+        source_type = type("ST", (), {"value": "feishu"})()
+        title = "飞书 PRD"
+        content_markdown = "# 飞书 PRD\n\n正文"
+        metadata = type("Meta", (), {"mime_type": "text/markdown"})()
+
+    class FakeConnector:
+        def can_handle(self, source: str) -> bool:
+            return "feishu" in source
+
+        def get_content(self, source: str):
+            return FakeDocument()
+
+    monkeypatch.setattr(
+        "pm_pal.server.project_space.ConnectorRegistry",
+        lambda: type("Reg", (), {"resolve": lambda self, source: FakeConnector()})(),
+    )
+
+    response = client.post(
+        f"/api/projects/{project_id}/sources/from-url",
+        json={"source_url": "https://feishu.cn/docx/abc", "is_prd": True},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == 1
+    detail = client.get(f"/api/projects/{project_id}/sources/{body['id']}").json()
+    assert detail["source_type"] == "feishu"
+    assert detail["title"] == "飞书 PRD"
+    assert detail["source_url"] == "https://feishu.cn/docx/abc"
+    assert "正文" in detail["content"]
+
+
+def test_from_url_maps_auth_errors(materials_client, monkeypatch):
+    client, project_id = materials_client
+    from pm_pal.connectors.errors import ConnectorAuthError
+
+    class FakeConnector:
+        def can_handle(self, source: str) -> bool:
+            return True
+
+        def get_content(self, source: str):
+            raise ConnectorAuthError("missing app credentials", source=source)
+
+    monkeypatch.setattr(
+        "pm_pal.server.project_space.ConnectorRegistry",
+        lambda: type("Reg", (), {"resolve": lambda self, source: FakeConnector()})(),
+    )
+    response = client.post(
+        f"/api/projects/{project_id}/sources/from-url",
+        json={"source_url": "https://feishu.cn/docx/abc"},
+    )
+    assert response.status_code == 401
+    detail = response.json()["detail"]
+    assert detail["code"] == "authentication_failed"
+    assert "MARRDP_FEISHU_APP_ID" in detail["message"]

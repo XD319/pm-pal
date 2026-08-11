@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from prd_pal.prompt_quality.context_trimmer import trim_context_for_node
-from prd_pal.prompt_quality.output_validator import (
+from pm_pal.prompt_quality.context_trimmer import trim_context_for_node
+from pm_pal.prompt_quality.output_validator import (
     SchemaValidationError,
     validate_output,
 )
-from prd_pal.prompt_registry import load_prompt_template, list_prompt_nodes
+from pm_pal.prompt_registry import load_prompt_template, list_prompt_nodes
 
 
 class _SampleSchema(BaseModel):
@@ -16,6 +16,16 @@ class _SampleSchema(BaseModel):
 
 def test_validate_output_accepts_pydantic_schema() -> None:
     payload = validate_output({"value": "ok"}, _SampleSchema)
+    assert payload == {"value": "ok"}
+
+
+def test_validate_output_accepts_json_string_for_pydantic_schema() -> None:
+    payload = validate_output('{"value": "ok"}', _SampleSchema)
+    assert payload == {"value": "ok"}
+
+
+def test_validate_output_accepts_double_encoded_json_string() -> None:
+    payload = validate_output('"{\\"value\\": \\"ok\\"}"', _SampleSchema)
     assert payload == {"value": "ok"}
 
 

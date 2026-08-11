@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from prd_pal.connectors.schemas import SourceMetadata
-from prd_pal.packs.delivery_bundle import DeliveryBundle
-from prd_pal.service import review_service
-from prd_pal.service.review_service import (
+from pm_pal.connectors.schemas import SourceMetadata
+from pm_pal.packs.delivery_bundle import DeliveryBundle
+from pm_pal.service import review_service
+from pm_pal.service.review_service import (
     build_delivery_handoff_outputs,
     get_review_result_payload,
 )

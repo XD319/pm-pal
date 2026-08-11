@@ -13,26 +13,26 @@ import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from prd_pal.connectors.github import GitHubConnector, GitHubHTTPResponse
-from prd_pal.connectors.github_sync import register_github_sync_handler
-from prd_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
-from prd_pal.connectors.sync import (
+from pm_pal.connectors.github import GitHubConnector, GitHubHTTPResponse
+from pm_pal.connectors.github_sync import register_github_sync_handler
+from pm_pal.connectors.schemas import SourceDocument, SourceMetadata, SourceType
+from pm_pal.connectors.sync import (
     ConnectorSyncStore,
     enqueue_sync_task,
     is_event_processed,
     mark_event_processed,
     run_sync_task,
 )
-from prd_pal.integrations.github.config_routes import register_github_connector_config_routes
-from prd_pal.integrations.github.config_store import (
+from pm_pal.integrations.github.config_routes import register_github_connector_config_routes
+from pm_pal.integrations.github.config_store import (
     GitHubAuthMode,
     GitHubConfigStore,
     GitHubConnectorSecrets,
     GitHubRepoMapping,
 )
-from prd_pal.integrations.github.events import handle_github_event_payload
-from prd_pal.integrations.github.router import create_github_router
-from prd_pal.integrations.github.security import build_github_signature
+from pm_pal.integrations.github.events import handle_github_event_payload
+from pm_pal.integrations.github.router import create_github_router
+from pm_pal.integrations.github.security import build_github_signature
 
 
 def _utc_now() -> str:
